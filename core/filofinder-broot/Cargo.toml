@@ -1,0 +1,15 @@
+[package]
+name = "filofinder-broot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Live tree filtering for Filofinder, powered by the broot library"
+
+[dependencies]
+# Pinned exactly: we call broot's internal library API (AppContext, TreeBuilder,
+# InputPattern, Dam), which is not semver-stable across releases.
+broot = { version = "=1.60.2", default-features = false }
+termimad = "0.35"
+
+[dev-dependencies]
+tempfile = "3"

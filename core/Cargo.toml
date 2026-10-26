@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["filofinder-core", "filofinder-ffi", "uniffi-bindgen"]
+members = ["filofinder-core", "filofinder-broot", "filofinder-ffi", "uniffi-bindgen"]
 
 [workspace.package]
 version = "0.0.1"
