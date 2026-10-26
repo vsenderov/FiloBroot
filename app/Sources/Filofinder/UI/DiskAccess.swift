@@ -40,9 +40,9 @@ final class DiskAccessSheet: NSWindowController {
     private func build() {
         guard let content = window?.contentView else { return }
         let icon = NSImageView(image: NSImage(systemSymbolName: "externaldrive.badge.checkmark", accessibilityDescription: nil) ?? NSImage())
-        icon.symbolConfiguration = .init(pointSize: 40, weight: .light)
+        icon.symbolConfiguration = .init(pointSize: Z(40), weight: .light)
         icon.contentTintColor = .controlAccentColor
-        let title = UI.label("Let Filofinder work with your whole disk", size: 17, weight: .semibold, color: .labelColor)
+        let title = UI.label("Let FiloBroot work with your whole disk", size: 17, weight: .semibold, color: .labelColor)
         let body = UI.label("""
             Filofinder is a file manager, so it needs Full Disk Access to show every folder — including the \
             Trash, Mail and other protected places — without macOS asking again and again.
@@ -63,7 +63,7 @@ final class DiskAccessSheet: NSWindowController {
         let open = NSButton(title: "Open Settings", target: self, action: #selector(openSettings))
         open.keyEquivalent = "\r"
         open.bezelStyle = .rounded
-        let reveal = NSButton(title: "Show Filofinder App", target: self, action: #selector(revealApp))
+        let reveal = NSButton(title: "Show FiloBroot App", target: self, action: #selector(revealApp))
         reveal.bezelStyle = .rounded
         reveal.toolTip = "Shows the app in Finder so you can drag it into the Full Disk Access list"
         let later = NSButton(title: "Later", target: self, action: #selector(later))

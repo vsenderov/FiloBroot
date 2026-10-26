@@ -67,7 +67,7 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
             header.topAnchor.constraint(equalTo: topAnchor, constant: 6),
             header.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             header.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
-            header.heightAnchor.constraint(equalToConstant: 24),
+            header.heightAnchor.constraint(equalToConstant: Z(24)),
             scroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 2),
             scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -176,8 +176,8 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
     }
 
     func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-        guard let node = item as? Node, !node.isGroup else { return 24 }
-        return showPreviews && (node.previews?.isEmpty == false) ? max(24, previewSize + 6) : 24
+        guard let node = item as? Node, !node.isGroup else { return Z(24) }
+        return showPreviews && (node.previews?.isEmpty == false) ? max(Z(24), previewSize + 6) : Z(24)
     }
 
     /// Looks up a folder's first 3 images in the background, then updates
@@ -341,7 +341,7 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
         if let tagColor = Tags.tag(fromPath: node.path).flatMap(Tags.color(named:)) {
             // Pre-coloured (non-template) dot: the sidebar style would recolour a template image.
             let dot = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: node.name)?
-                .withSymbolConfiguration(.init(pointSize: 11, weight: .regular).applying(.init(paletteColors: [tagColor])))
+                .withSymbolConfiguration(.init(pointSize: Z(11), weight: .regular).applying(.init(paletteColors: [tagColor])))
             dot?.isTemplate = false
             cell.imageView?.image = dot
             cell.imageView?.contentTintColor = nil
@@ -372,17 +372,17 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
         cell.addSubview(text)
         cell.textField = text
         if group {
-            text.font = .systemFont(ofSize: 11, weight: .semibold)
+            text.font = .systemFont(ofSize: Z(11), weight: .semibold)
             text.textColor = .secondaryLabelColor
             NSLayoutConstraint.activate([
                 text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
                 text.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
             ])
         } else {
-            text.font = .systemFont(ofSize: 12.5)
+            text.font = .systemFont(ofSize: Z(12.5))
             let image = NSImageView()
             image.unregisterDraggedTypes() // drops go to the outline row
-            image.symbolConfiguration = .init(pointSize: 12.5, weight: .regular)
+            image.symbolConfiguration = .init(pointSize: Z(12.5), weight: .regular)
             image.contentTintColor = .secondaryLabelColor
             image.translatesAutoresizingMaskIntoConstraints = false
             cell.addSubview(image)
@@ -394,7 +394,7 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
             NSLayoutConstraint.activate([
                 image.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
                 image.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                image.widthAnchor.constraint(equalToConstant: 16),
+                image.widthAnchor.constraint(equalToConstant: Z(16)),
                 text.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 5),
                 text.trailingAnchor.constraint(lessThanOrEqualTo: thumbs.leadingAnchor, constant: -6),
                 thumbs.trailingAnchor.constraint(lessThanOrEqualTo: add.leadingAnchor, constant: -2),
@@ -537,7 +537,7 @@ final class TreeThumb: NSImageView {
         view.imageScaling = .scaleProportionallyUpOrDown
         view.frame = NSRect(x: 0, y: 0, width: 224, height: 224)
         let label = NSTextField(labelWithString: (path as NSString).lastPathComponent)
-        label.font = .systemFont(ofSize: 10)
+        label.font = .systemFont(ofSize: Z(10))
         label.textColor = .secondaryLabelColor
         label.alignment = .center
         label.lineBreakMode = .byTruncatingMiddle

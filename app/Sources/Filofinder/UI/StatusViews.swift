@@ -9,8 +9,8 @@ final class StatusBarView: NSView {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        count.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
-        info.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        count.font = .monospacedDigitSystemFont(ofSize: Z(10), weight: .regular)
+        info.font = .monospacedDigitSystemFont(ofSize: Z(10), weight: .regular)
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
         let row = UI.hstack([count, selected, spacer, info], spacing: 8)
@@ -69,7 +69,7 @@ final class Chip: NSView {
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7),
             label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -7),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            heightAnchor.constraint(equalToConstant: 15),
+            heightAnchor.constraint(equalToConstant: Z(15)),
         ])
     }
 
@@ -99,7 +99,7 @@ final class PreviewPaneView: NSView {
         super.init(frame: .zero)
         ql.autostarts = false
         ql.shouldCloseWithWindow = false
-        counter.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
+        counter.font = .monospacedSystemFont(ofSize: Z(10), weight: .regular)
         placeholder.alignment = .center
         name.lineBreakMode = .byTruncatingMiddle
         let close = UI.iconButton("xmark", "Close Preview", target: fm, action: #selector(FileManagerWindowController.togglePreview(_:)), size: 22)

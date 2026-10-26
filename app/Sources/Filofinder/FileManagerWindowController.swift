@@ -89,8 +89,46 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         super.init(window: window)
         window.delegate = self
         buildLayout()
+        registerObservers()
         load(leftTab)
         refreshAll()
+    }
+
+    /// App-wide notifications; registered once, because buildLayout() runs
+    /// again whenever the whole-UI zoom changes.
+    private func registerObservers() {
+        // Tags changed (context menu): refresh dots everywhere.
+        NotificationCenter.default.addObserver(forName: Tags.changed, object: nil, queue: .main) { [weak self] _ in
+            Tags.clearCache()
+            guard let self else { return }
+            self.leftPane.panel.reloadVisible()
+            if self.splitMode { self.rightPane.panel.reloadVisible() }
+            if self.activeTab.isVirtual { self.refresh(nil) }
+        }
+        NotificationCenter.default.addObserver(forName: UIZoom.changed, object: nil, queue: .main) { [weak self] _ in
+            self?.rebuildForZoom()
+        }
+    }
+
+    /// ⌘+ / ⌘− / ⌘0: rebuild every view at the new scale. All state (tabs,
+    /// listings, selection, history) lives in this controller, so nothing
+    /// is lost; only scroll positions reset.
+    private func rebuildForZoom() {
+        guard let content = window?.contentView else { return }
+        let wasMonitoring = !frameText.isEmpty
+        frameMonitor.stop()
+        preview?.stop()
+        for s in [split, panes] {
+            for v in s.arrangedSubviews { s.removeArrangedSubview(v); v.removeFromSuperview() }
+        }
+        content.subviews.forEach { $0.removeFromSuperview() }
+        buildLayout()
+        refreshAll()
+        leftPane.panel.reload()
+        if splitMode { rightPane.panel.reload() }
+        if wasMonitoring { frameMonitor.start(on: panel) }
+        window?.makeFirstResponder(panel.focusTarget)
+        UI.hud("Zoom \(UIZoom.percent)", in: window)
     }
 
     @available(*, unavailable)
@@ -141,8 +179,8 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
 
         let line = NSBox()
         line.boxType = .separator
-        tabBar.heightAnchor.constraint(equalToConstant: 34).isActive = true
-        breadcrumbs.heightAnchor.constraint(equalToConstant: 38).isActive = true
+        tabBar.heightAnchor.constraint(equalToConstant: Z(34)).isActive = true
+        breadcrumbs.heightAnchor.constraint(equalToConstant: Z(38)).isActive = true
 
         let column = NSStackView(views: [top, tabBar, breadcrumbs, line, body])
         column.orientation = .vertical
@@ -161,15 +199,6 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         // rebuilt right away, not on the next relaunch.
         appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
             DispatchQueue.main.async { self?.appearanceChanged() }
-        }
-
-        // Tags changed (context menu): refresh dots everywhere.
-        NotificationCenter.default.addObserver(forName: Tags.changed, object: nil, queue: .main) { [weak self] _ in
-            Tags.clearCache()
-            guard let self else { return }
-            self.leftPane.panel.reloadVisible()
-            if self.splitMode { self.rightPane.panel.reloadVisible() }
-            if self.activeTab.isVirtual { self.refresh(nil) }
         }
 
         frameMonitor.onReport = { [weak self] r in
@@ -295,6 +324,15 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         breadcrumbs.search.setMatchCount(leftTab.listing.map { Int($0.count()) })
     }
 
+    /// Status-bar timing text for a broot result.
+    private static func treeTiming(_ listing: ListingHandle) -> String {
+        let s = listing.stats()
+        var t = String(format: "broot %.0f ms · %d rows", Double(s.listMicros) / 1000, Int(listing.count()))
+        let more = listing.treeUnlisted()
+        if more > 0 { t += " · \(more) more not shown" }
+        return t
+    }
+
     func debugTreeClick(row: Int) { tree.debugClick(row: row) }
 
     #if DEBUG
@@ -355,12 +393,16 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     /// Lists `path` (default: the tab's folder) off the main thread. The
     /// current folder stays on screen until the new one is ready (Finder
     /// behaviour); `onSuccess` runs only if the new folder opened.
-    private func load(_ tab: Tab, path target: String? = nil, keepSelection: Bool = false, onSuccess: (() -> Void)? = nil) {
+    private func load(_ tab: Tab, path target: String? = nil, keepSelection: Bool = false, scrollToSelection: Bool = false,
+                      onSuccess: (() -> Void)? = nil) {
         let path = target ?? tab.path
         tab.generation += 1
         let gen = tab.generation
         let started = CACurrentMediaTime()
-        let hidden = showHidden, field = sortField, desc = sortDescending, query = target == nil ? tab.query : ""
+        if target != nil { cancelTreeSearch(tab) }
+        // Only tag tabs use the old substring filter; folders filter through broot.
+        let virtual = Tags.tag(fromPath: path) != nil
+        let hidden = showHidden, field = sortField, desc = sortDescending, query = target == nil && virtual ? tab.query : ""
         tab.loading = true
         // A slow open is almost always macOS checking privacy permission
         // (Desktop, Documents, Downloads, drives). Say so instead of looking frozen.
@@ -388,16 +430,27 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
                     if !keepSelection { tab.selection = [] }
                     if target != nil { tab.query = "" }
                     onSuccess?()
-                    tab.listing = listing
+                    tab.folderListing = listing
                     tab.path = listing.path()
-                    tab.resetRows()
                     let s = listing.stats()
                     tab.timing = String(format: "list %.0f ms · sort %.0f ms · %.0f ms total",
                                          Double(s.listMicros) / 1000, Double(s.sortMicros) / 1000,
                                          (CACurrentMediaTime() - started) * 1000)
+                    if !tab.query.isEmpty && !tab.isVirtual {
+                        // A broot filter is active (refresh, hidden files
+                        // toggled, folder changed on disk): keep its rows on
+                        // screen and search again.
+                        if tab.listing == nil { tab.listing = listing; tab.resetRows() }
+                        self.runTreeSearch(tab, keepSelection: true)
+                    } else {
+                        tab.listing = listing
+                        tab.resetRows()
+                    }
                     if let pane = self.pane(showing: tab) {
                         if !keepSelection { pane.panel.scrollToTop() }
                         self.refreshAll()
+                        if scrollToSelection { pane.panel.scrollToSelection() }
+                        self.refocusPanel(pane)
                     }
                 case .failure(let error):
                     let denied = "\(error)".contains("not permitted") || "\(error)".contains("Permission denied")
@@ -407,6 +460,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
                         onSuccess?()
                         tab.path = path
                         tab.listing = nil
+                        tab.folderListing = nil
                         tab.rows = []
                         tab.selection = []
                         tab.accessDenied = true
@@ -428,22 +482,47 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         return nil
     }
 
-    func navigate(to path: String) {
+    /// Opens `path` in the active tab; `select` names an item in it to
+    /// select and scroll to (address bar with a file path, Reveal in Finder).
+    func navigate(to path: String, select: String? = nil) {
         let tab = activeTab
         let target = (path as NSString).standardizingPath
-        guard target != tab.path else { return }
+        guard target != tab.path || !tab.query.isEmpty else {
+            if let select { selectAndShow(select, in: tab) }
+            return
+        }
         let from = tab.path
-        go(tab, to: target) {
-            tab.back.append(from)
-            tab.forward.removeAll()
+        go(tab, to: target, scrollToSelection: select != nil) {
+            if target != from {
+                tab.back.append(from)
+                tab.forward.removeAll()
+            }
+            if let select { tab.selection = [select] }
         }
     }
 
-    private func go(_ tab: Tab, to path: String, onSuccess: @escaping () -> Void) {
-        load(tab, path: path) { [weak self] in
+    private func go(_ tab: Tab, to path: String, scrollToSelection: Bool = false, onSuccess: @escaping () -> Void) {
+        load(tab, path: path, scrollToSelection: scrollToSelection) { [weak self] in
             self?.previewName = nil
             onSuccess()
         }
+    }
+
+    private func selectAndShow(_ name: String, in tab: Tab) {
+        tab.selection = [name]
+        guard let pane = pane(showing: tab) else { return }
+        pane.panel.applySelection()
+        pane.panel.scrollToSelection()
+        selectionDidChange()
+    }
+
+    /// After a panel switches between grid and list (broot results are
+    /// always a list), keep keyboard focus on the visible view.
+    private func refocusPanel(_ pane: PaneView) {
+        guard let window, pane.side == focused || !splitMode else { return }
+        let fr = window.firstResponder
+        guard fr === pane.panel.grid || fr === pane.panel.list || fr === window || fr == nil else { return }
+        if fr !== pane.panel.focusTarget { window.makeFirstResponder(pane.panel.focusTarget) }
     }
 
     // MARK: Tabs
@@ -486,7 +565,20 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         leftTab = tab
         focused = .left
         previewName = nil
-        load(tab, keepSelection: true)
+        load(tab, keepSelection: true, scrollToSelection: true)
+        refreshAll()
+    }
+
+    /// Default-file-viewer entry point for folders (Finder "open"): a new
+    /// tab at that folder.
+    func openFolderInNewTab(_ path: String) {
+        let tab = Tab(path: (path as NSString).standardizingPath)
+        tabs.append(tab)
+        if tab === rightTab { rightTab = leftTab }
+        leftTab = tab
+        focused = .left
+        previewName = nil
+        load(tab)
         refreshAll()
     }
 
@@ -656,10 +748,15 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     }
 
     @objc func newFolder(_ sender: Any?) { if requireRealFolder() { ops.newFolder(in: activeTab.path) } }
-    @objc func copyItems(_ sender: Any?) { if let p = requireSelection() { ops.copy(p); panel.reloadVisible(); toolbar.update() } }
-    @objc func cutItems(_ sender: Any?) { if let p = requireSelection() { ops.cut(p); leftPane.panel.reloadVisible(); rightPane.panel.reloadVisible(); toolbar.update() } }
-    @objc func pasteItems(_ sender: Any?) { if requireRealFolder() { ops.paste(into: activeTab.path) } }
-    @objc func undoAction(_ sender: Any?) { ops.undo() }
+    /// While a text field (address bar, filter) is being edited, the Edit
+    /// menu's ⌘C ⌘X ⌘V ⌘A ⌘Z act on its text, not on files.
+    /// (Menu invocations only: toolbar buttons keep acting on files.)
+    private var textEditor: NSTextView? { window?.firstResponder as? NSTextView }
+
+    @objc func copyItems(_ sender: Any?) { if sender is NSMenuItem, let t = textEditor { t.copy(sender); return }; if let p = requireSelection() { ops.copy(p); panel.reloadVisible(); toolbar.update() } }
+    @objc func cutItems(_ sender: Any?) { if sender is NSMenuItem, let t = textEditor { t.cut(sender); return }; if let p = requireSelection() { ops.cut(p); leftPane.panel.reloadVisible(); rightPane.panel.reloadVisible(); toolbar.update() } }
+    @objc func pasteItems(_ sender: Any?) { if sender is NSMenuItem, let t = textEditor { t.paste(sender); return }; if requireRealFolder() { ops.paste(into: activeTab.path) } }
+    @objc func undoAction(_ sender: Any?) { if sender is NSMenuItem, let t = textEditor { t.undoManager?.undo(); return }; ops.undo() }
     @objc func moveToBin(_ sender: Any?) {
         guard let p = requireSelection() else { return }
         if activeTab.isTrash { ops.deletePermanently(p) } else { ops.moveToTrash(p) }
@@ -703,6 +800,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     }
 
     @objc func selectAllItems(_ sender: Any?) {
+        if sender is NSMenuItem, let t = textEditor { t.selectAll(sender); return }
         let tab = activeTab
         tab.selection = Set((0..<tab.rows.count).compactMap { tab.row($0)?.name })
         panel.applySelection()
@@ -729,6 +827,11 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
 
     @objc func zoomOut(_ sender: Any?) { zoomBy(-0.2) }
     @objc func zoomIn(_ sender: Any?) { zoomBy(0.2) }
+
+    // Whole-UI zoom (⌘+ / ⌘− / ⌘0); every window rebuilds via UIZoom.changed.
+    @objc func uiZoomIn(_ sender: Any?) { UIZoom.zoomIn() }
+    @objc func uiZoomOut(_ sender: Any?) { UIZoom.zoomOut() }
+    @objc func uiZoomReset(_ sender: Any?) { UIZoom.reset() }
 
     func zoomBy(_ delta: CGFloat) {
         let z = min(max(zoom + delta, Self.zoomRange.lowerBound), Self.zoomRange.upperBound)
@@ -805,6 +908,53 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         toolbar.update()
     }
 
+    /// ⌘L: edit the address bar (split view has none: the Go to Folder sheet).
+    @objc func focusAddressBar(_ sender: Any?) {
+        if splitMode { focusPath(sender) } else { breadcrumbs.beginEditing() }
+    }
+
+    /// Turns what was typed or pasted into the address bar into an absolute
+    /// path: trims, unquotes, accepts file:// URLs and shell-escaped spaces,
+    /// expands ~ and resolves relative paths against `base`.
+    static func resolveTypedPath(_ raw: String, relativeTo base: String) -> String? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.count >= 2, let f = s.first, f == s.last, f == "'" || f == "\"" { s = String(s.dropFirst().dropLast()) }
+        if s.lowercased().hasPrefix("file://"), let url = URL(string: s), url.isFileURL { s = url.path }
+        s = s.replacingOccurrences(of: "\\ ", with: " ")
+        guard !s.isEmpty else { return nil }
+        s = (s as NSString).expandingTildeInPath
+        if !s.hasPrefix("/") {
+            guard !base.hasPrefix("tag:") else { return nil }
+            s = (base as NSString).appendingPathComponent(s)
+        }
+        return (s as NSString).standardizingPath
+    }
+
+    /// Address bar Enter: a folder opens, a file opens its folder with the
+    /// file selected. Returns false (and says why) if the path is no good.
+    @discardableResult
+    func goToTypedPath(_ raw: String) -> Bool {
+        guard let path = Self.resolveTypedPath(raw, relativeTo: activeTab.path) else {
+            NSSound.beep()
+            UI.hud("⚠︎ Type a path, e.g. ~/Downloads", in: window)
+            return false
+        }
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else {
+            NSSound.beep()
+            UI.hud("⚠︎ No such file or folder: \(path)", in: window)
+            return false
+        }
+        if isDir.boolValue {
+            navigate(to: path)
+        } else {
+            let parent = (path as NSString).deletingLastPathComponent
+            navigate(to: parent.isEmpty ? "/" : parent, select: (path as NSString).lastPathComponent)
+        }
+        window?.makeFirstResponder(panel.focusTarget)
+        return true
+    }
+
     @objc func focusPath(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Folder"
@@ -817,13 +967,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         alert.window.initialFirstResponder = field
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertFirstButtonReturn else { return }
-            let path = (field.stringValue.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
-                UI.hud("Folder not found", in: self?.window)
-                return
-            }
-            self?.navigate(to: path)
+            self?.goToTypedPath(field.stringValue)
         }
     }
 
@@ -840,20 +984,128 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
 
     // MARK: Filter & sort
 
+    /// The filter. In a folder it is a broot pattern and the panel shows
+    /// broot's tree of matches under the folder (fuzzy by default, `/re/`
+    /// regex, `p/…` path, `c/…` content); tag tabs keep a plain substring
+    /// filter. Every keystroke cancels the search still running.
     func setQuery(_ query: String) {
         let tab = activeTab
-        guard let listing = tab.listing, query != tab.query else { return }
+        guard query != tab.query else { return }
         tab.query = query
-        listing.setView(field: sortField, descending: sortDescending, query: query)
-        tab.resetRows()
+        if tab.isVirtual {
+            guard let listing = tab.listing else { return }
+            listing.setView(field: sortField, descending: sortDescending, query: query)
+            tab.resetRows()
+            pane(showing: tab)?.panel.reload()
+        } else {
+            runTreeSearch(tab)
+        }
         pane(showing: tab)?.update()
+        if tab === leftTab && !splitMode { breadcrumbs.search.show(query) }
         updateStatus()
+    }
+
+    /// Rows broot may return per search (UserDefaults "brootMaxRows").
+    static var brootMaxRows: UInt32 {
+        let v = UserDefaults.standard.integer(forKey: "brootMaxRows")
+        return UInt32(v > 0 ? min(v, 100_000) : 500)
+    }
+
+    private func cancelTreeSearch(_ tab: Tab) {
+        tab.treeSearch?.cancel()
+        tab.treeSearch = nil
+        tab.treeError = nil
+    }
+
+    /// Runs broot for the tab's query off the main thread. A newer query
+    /// cancels this one (broot stops within a fraction of a millisecond);
+    /// stale results are dropped. An empty query restores the folder.
+    private func runTreeSearch(_ tab: Tab, keepSelection: Bool = false) {
+        cancelTreeSearch(tab)
+        let query = tab.query
+        guard !query.isEmpty, !tab.isVirtual, !tab.accessDenied else {
+            if let folder = tab.folderListing, tab.listing !== folder {
+                tab.listing = folder
+                tab.resetRows()
+                // Keep the selection where it was: a nested match selects
+                // its top-level folder.
+                tab.selection = Set(tab.selection.compactMap { $0.split(separator: "/").first.map(String.init) })
+                tab.timing = ""
+                if let pane = pane(showing: tab) {
+                    pane.panel.reload()
+                    pane.panel.scrollToSelection()
+                    refocusPanel(pane)
+                }
+            }
+            return
+        }
+        let search = TreeSearch()
+        tab.treeSearch = search
+        let root = tab.path, hidden = showHidden, maxRows = Self.brootMaxRows
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let result = Result { try search.run(root: root, pattern: query, maxRows: maxRows, showHidden: hidden,
+                                                 respectGitIgnore: true, budgetMs: 10_000) }
+            DispatchQueue.main.async {
+                guard let self, tab.treeSearch === search else { return } // superseded
+                tab.treeSearch = nil
+                switch result {
+                case .success(let listing):
+                    tab.listing = listing
+                    tab.resetRows()
+                    tab.treeError = nil
+                    tab.timing = Self.treeTiming(listing)
+                    let still = tab.selection.filter { listing.indexOf(name: $0) != nil }
+                    if keepSelection && !still.isEmpty {
+                        tab.selection = still
+                    } else if let best = listing.treeBest(), let row = listing.row(index: best) {
+                        tab.selection = [row.name] // broot's best match, like its own selection
+                    } else {
+                        tab.selection = []
+                    }
+                case .failure(let error):
+                    let message: String
+                    switch error as? TreeSearchError {
+                    case .Cancelled?: return
+                    case .TimedOut?: message = "search took over 10 s, stopped"
+                    case .BadPattern(let m)?: message = m
+                    case .Failed(let m)?: message = m
+                    case nil: message = "\(error)"
+                    }
+                    // Keep the previous rows; say what went wrong.
+                    tab.treeError = message
+                    tab.timing = "broot: \(message)"
+                }
+                guard let pane = self.pane(showing: tab) else { return }
+                pane.panel.reload()
+                pane.panel.scrollToSelection()
+                pane.update()
+                self.refocusPanel(pane)
+                self.selectionDidChange()
+            }
+        }
+    }
+
+    /// Keys typed in a filter field that belong to the list: ↑/↓ move the
+    /// selection, Enter opens it (broot's own keys).
+    func searchFieldCommand(_ selector: Selector) -> Bool {
+        switch selector {
+        case #selector(NSResponder.moveUp(_:)), #selector(NSResponder.moveDown(_:)):
+            guard let event = NSApp.currentEvent, event.type == .keyDown else { return false }
+            panel.focusTarget.keyDown(with: event)
+            return true
+        case #selector(NSResponder.insertNewline(_:)):
+            guard !panel.selectedIndexes().isEmpty else { return false }
+            openSelection()
+            return true
+        default:
+            return false
+        }
     }
 
     func setSort(_ field: SortField, descending: Bool) {
         sortField = field
         sortDescending = descending
-        guard let listing = activeTab.listing else { return }
+        guard let listing = activeTab.listing, !activeTab.isTree else { return }
         listing.setView(field: field, descending: descending, query: activeTab.query)
         activeTab.resetRows()
         pane(showing: activeTab)?.panel.reload()
@@ -908,7 +1160,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         tab.selection = [name]
         previewName = name
         panel.applySelection()
-        if viewMode == .grid {
+        if panel.mode == .grid {
             panel.grid.scrollToItems(at: [IndexPath(item: next, section: 0)], scrollPosition: .nearestHorizontalEdge)
         } else {
             panel.list.scrollRowToVisible(next)
@@ -922,18 +1174,22 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
 
     func handleKey(_ event: NSEvent) -> Bool {
         let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])
-        let chars = event.charactersIgnoringModifiers ?? ""
         switch (event.keyCode, mods) {
         case (36, []), (76, []): openSelection(); return true                      // Return
-        case (51, []), (117, []): moveToBin(nil); return true                       // ⌫ / Del
-        case (51, [.command]), (117, [.command]): deletePermanently(nil); return true
+        case (51, []):                                                              // ⌫: edit filter, else parent
+            if activeTab.query.isEmpty { goUp(nil) } else { setQuery(String(activeTab.query.dropLast())) }
+            return true
+        case (117, []), (51, [.command]): moveToBin(nil); return true               // Del / ⌘⌫ (Finder)
+        case (51, [.command, .option]), (117, [.command]): deletePermanently(nil); return true
         case (123, [.option]): goBack(nil); return true                             // ⌥←
         case (124, [.option]): goForward(nil); return true                          // ⌥→
         case (126, [.command]): goUp(nil); return true                              // ⌘↑
         case (125, [.command]): openSelection(); return true                        // ⌘↓
         case (96, []): refresh(nil); return true                                    // F5
         case (120, []): renameItem(nil); return true                                // F2
-        case (53, []): activeTab.selection = []; panel.applySelection(); selectionDidChange(); return true // Esc
+        case (53, []):                                                              // Esc: clear filter, else selection
+            if !activeTab.query.isEmpty { setQuery(""); return true }
+            activeTab.selection = []; panel.applySelection(); selectionDidChange(); return true
         case (49, []): quickLook.toggle(); return true                              // Space = Quick Look
         case (48, []) where splitMode:                                              // ⇥ = other pane
             focus(focused.other)
@@ -943,7 +1199,13 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         case (116, []): panel.page(-1); return true                                 // Page Up
         default: break
         }
-        if mods.isEmpty, chars == "s" { toggleMultiSelect(nil); return true }
+        // Typing filters live through broot (focus stays on the list, the
+        // filter field mirrors the pattern), like typing in broot itself.
+        if mods.subtracting(.shift).isEmpty, let typed = event.characters, !typed.isEmpty,
+           typed.unicodeScalars.allSatisfy({ $0.value >= 0x20 && $0.value != 0x7F && !(0xF700...0xF8FF).contains($0.value) }) {
+            setQuery(activeTab.query + typed)
+            return true
+        }
         return false
     }
 
@@ -979,9 +1241,20 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let t = textEditor {
+            switch item.action {
+            case #selector(copyItems(_:)), #selector(cutItems(_:)): return t.selectedRange.length > 0
+            case #selector(pasteItems(_:)), #selector(selectAllItems(_:)): return true
+            case #selector(undoAction(_:)): item.title = "Undo"; return t.undoManager?.canUndo ?? false
+            default: break
+            }
+        }
         switch item.action {
         case #selector(toggleHidden(_:)): item.state = showHidden ? .on : .off
         case #selector(toggleFrameMonitor(_:)): item.state = frameText.isEmpty ? .off : .on
+        case #selector(uiZoomIn(_:)): return UIZoom.factor < UIZoom.levels.last! - 0.001
+        case #selector(uiZoomOut(_:)): return UIZoom.factor > UIZoom.levels.first! + 0.001
+        case #selector(uiZoomReset(_:)): item.title = "Actual Size (\(UIZoom.percent))"
         case #selector(toggleTree(_:)): item.state = showTree ? .on : .off; return !splitMode
         case #selector(toggleSplit(_:)): item.state = splitMode ? .on : .off
         case #selector(togglePreview(_:)): item.state = showPreview ? .on : .off

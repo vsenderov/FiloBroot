@@ -9,6 +9,9 @@ final class FilePanel: NSView {
     let side: Side
     /// The tab this panel shows (left = tab-bar tab, right = split tab).
     private var tab: Tab { fm.tab(for: side) }
+    /// broot results are a tree, so they always show as a list; otherwise
+    /// the window's grid/list choice.
+    var mode: ViewMode { tab.isTree ? .list : fm.viewMode }
     let gridScroll = NSScrollView()
     let listScroll = NSScrollView()
     let grid = GridCollectionView()
@@ -69,8 +72,8 @@ final class FilePanel: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     private func buildGrid() {
-        layout.zoom = fm.zoom
-        layout.labelSize = fm.textSize
+        layout.zoom = fm.zoom * UIZoom.factor
+        layout.labelSize = Z(fm.textSize)
         grid.collectionViewLayout = layout
         grid.dataSource = self
         grid.delegate = self
@@ -102,7 +105,7 @@ final class FilePanel: NSView {
             list.addTableColumn(c)
         }
         list.style = .fullWidth
-        list.rowHeight = 36
+        list.rowHeight = Z(36)
         list.intercellSpacing = NSSize(width: 6, height: 0)
         list.usesAlternatingRowBackgroundColors = false
         list.allowsMultipleSelection = true
@@ -129,22 +132,24 @@ final class FilePanel: NSView {
     /// Full reload after navigation, filter or sort changes.
     func reload() {
         let tab = self.tab
-        layout.zoom = fm.zoom
-        layout.labelSize = fm.textSize
-        // List rows grow with the name size (captools default: 36 pt at 12 pt text).
-        list.rowHeight = max(28, (ListCell.nameSize(fm.textSize) * 1.4).rounded() + 20)
-        gridScroll.isHidden = fm.viewMode != .grid
-        listScroll.isHidden = fm.viewMode != .list
+        layout.zoom = fm.zoom * UIZoom.factor
+        layout.labelSize = Z(fm.textSize)
+        // List rows grow with the name size (captools default: 36 pt at 12 pt
+        // text); nameSize already includes the whole-UI zoom.
+        list.rowHeight = max(Z(28), (ListCell.nameSize(fm.textSize) * 1.4).rounded() + Z(20))
+        gridScroll.isHidden = mode != .grid
+        listScroll.isHidden = mode != .list
         list.tableColumn(withIdentifier: .init("check"))?.isHidden = !fm.multiSelect
         if tab.loading && tab.listing == nil { spinner.startAnimation(nil) } else { spinner.stopAnimation(nil) }
-        if fm.viewMode == .grid {
+        if mode == .grid {
             layout.invalidateLayout()
             grid.reloadData()
         } else {
             list.reloadData()
         }
         let empty = tab.listing != nil && tab.rows.isEmpty
-        emptyLabel.stringValue = tab.query.isEmpty ? "This folder is empty" : "No matching files"
+        emptyLabel.stringValue = tab.query.isEmpty ? "This folder is empty"
+            : tab.treeError.map { "broot: \($0)" } ?? "No matching files"
         emptyLabel.isHidden = !empty || tab.accessDenied
         accessView.isHidden = !tab.accessDenied
         if tab.accessDenied { accessView.show(for: tab) }
@@ -154,7 +159,7 @@ final class FilePanel: NSView {
 
     /// Repaints visible cells (e.g. after cut marks changed).
     func reloadVisible() {
-        if fm.viewMode == .grid {
+        if mode == .grid {
             grid.reloadItems(at: grid.indexPathsForVisibleItems())
         } else {
             let r = list.rows(in: list.visibleRect)
@@ -162,6 +167,18 @@ final class FilePanel: NSView {
                             columnIndexes: IndexSet(integersIn: 0..<list.numberOfColumns))
         }
         applySelection()
+    }
+
+    /// Brings the first selected item into view (broot's best match,
+    /// a revealed file, an address-bar file path).
+    func scrollToSelection() {
+        guard let i = selectedIndexes().first else { return }
+        if mode == .grid {
+            grid.layoutSubtreeIfNeeded()
+            grid.scrollToItems(at: [IndexPath(item: i, section: 0)], scrollPosition: .centeredVertically)
+        } else {
+            list.scrollRowToVisible(i)
+        }
     }
 
     func scrollToTop() {
@@ -184,7 +201,7 @@ final class FilePanel: NSView {
                 for name in tab.selection { if let i = listing.indexOf(name: name) { indexes.insert(Int(i)) } }
             }
         }
-        if fm.viewMode == .grid {
+        if mode == .grid {
             grid.selectionIndexPaths = Set(indexes.map { IndexPath(item: $0, section: 0) })
         } else {
             list.selectRowIndexes(indexes, byExtendingSelection: false)
@@ -192,7 +209,7 @@ final class FilePanel: NSView {
     }
 
     func selectedIndexes() -> IndexSet {
-        fm.viewMode == .grid ? IndexSet(grid.selectionIndexPaths.map(\.item)) : list.selectedRowIndexes
+        mode == .grid ? IndexSet(grid.selectionIndexPaths.map(\.item)) : list.selectedRowIndexes
     }
 
     /// Scroll position → captools "cur/total" page label.
@@ -205,11 +222,11 @@ final class FilePanel: NSView {
     }
 
     func page(_ direction: Int) {
-        let scroll = fm.viewMode == .grid ? gridScroll : listScroll
+        let scroll = mode == .grid ? gridScroll : listScroll
         let clip = scroll.contentView
         let docH = scroll.documentView?.frame.height ?? 0
         // captools pages by (rows − 1) so one row stays visible for context.
-        let step = max(clip.bounds.height - (fm.viewMode == .grid ? layout.rowHeight : list.rowHeight), 40)
+        let step = max(clip.bounds.height - (mode == .grid ? layout.rowHeight : list.rowHeight), 40)
         let y = min(max(0, clip.bounds.minY + CGFloat(direction) * step), max(0, docH - clip.bounds.height))
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.18
@@ -239,7 +256,7 @@ final class FilePanel: NSView {
         fm.selectionDidChange()
     }
 
-    var focusTarget: NSView { fm.viewMode == .grid ? grid : list }
+    var focusTarget: NSView { mode == .grid ? grid : list }
 
     /// Where a drop lands: the folder under the cursor if it accepts the
     /// files, otherwise the current folder.
@@ -288,7 +305,7 @@ extension FilePanel: NSCollectionViewDataSource, NSCollectionViewDelegate {
         let tile = collectionView.makeItem(withIdentifier: GridTile.id, for: indexPath) as! GridTile
         let tab = self.tab
         if let entry = tab.row(indexPath.item) {
-            tile.labelSize = fm.textSize
+            tile.labelSize = Z(fm.textSize)
             tile.configure(entry: entry, path: tab.fullPath(entry.name), cell: layout.cellWidth,
                            previewing: fm.previewName == entry.name)
             if fm.isCut(tab.fullPath(entry.name)) { tile.view.alphaValue = 0.45 }
@@ -369,9 +386,19 @@ extension FilePanel: NSTableViewDataSource, NSTableViewDelegate {
         case "name":
             cell.nameFontSize = ListCell.nameSize(fm.textSize)
             cell.tagColors = Tags.colorsFor(tab.fullPath(entry.name))
-            cell.setName(displayName(entry, path: tab.fullPath(entry.name)), icon: Icons.icon(for: entry, path: tab.fullPath(entry.name)), hidden: entry.hidden || fm.isCut(tab.fullPath(entry.name)))
+            let path = tab.fullPath(entry.name)
+            if tab.isTree {
+                // broot tree row: indented by depth, matched characters highlighted.
+                cell.indent = CGFloat(max(Int(entry.depth) - 1, 0)) * Z(16)
+                let leaf = (entry.name as NSString).lastPathComponent
+                cell.setName(leaf, icon: Icons.icon(for: entry, path: path), hidden: entry.hidden || fm.isCut(path),
+                             matches: entry.matchPos, dimmed: !entry.directMatch)
+            } else {
+                cell.indent = 0
+                cell.setName(displayName(entry, path: path), icon: Icons.icon(for: entry, path: path), hidden: entry.hidden || fm.isCut(path))
+            }
         case "type":
-            cell.setText(entry.kind == .folder ? "Folder" : (entry.name as NSString).pathExtension.uppercased())
+            cell.setText(entry.kind == .folder ? "Folder" : ((entry.name as NSString).lastPathComponent as NSString).pathExtension.uppercased())
         default:
             cell.setText(entry.kind == .folder ? "--" : ByteCountFormatter.string(fromByteCount: Int64(entry.size), countStyle: .file))
         }
@@ -426,7 +453,8 @@ extension FilePanel: NSTableViewDataSource, NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, typeSelectStringFor tableColumn: NSTableColumn?, row: Int) -> String? {
-        tableColumn?.identifier.rawValue == "name" ? tab.row(row)?.name : nil
+        // Typing filters through broot instead (handleKey), so type-select is off.
+        nil
     }
 }
 
@@ -639,7 +667,7 @@ final class GridTile: NSCollectionViewItem {
         // NSImageView accepts file drags by default and would swallow drops
         // aimed at the folder; let them fall through to the collection view.
         thumb.unregisterDraggedTypes()
-        name.font = .systemFont(ofSize: 10)
+        name.font = .systemFont(ofSize: Z(10))
         name.textColor = .labelColor.withAlphaComponent(0.8)
         name.alignment = .center
         name.lineBreakMode = .byWordWrapping
@@ -680,7 +708,7 @@ final class GridTile: NSCollectionViewItem {
         // The thumbnail area has a fixed height (cell × 0.75); the name sits
         // below it and is only as tall as its text (1–2 lines), so the
         // selection pill hugs the name like Finder's.
-        thumbHeightConstraint = thumbBox.heightAnchor.constraint(equalToConstant: 75)
+        thumbHeightConstraint = thumbBox.heightAnchor.constraint(equalToConstant: Z(75))
         thumbHeightConstraint?.isActive = true
         labelHeightConstraint = name.heightAnchor.constraint(lessThanOrEqualToConstant: 14)
         labelHeightConstraint?.isActive = true
@@ -803,13 +831,17 @@ final class ListCell: NSTableCellView {
     private let label = NSTextField(labelWithString: "")
     private let icon = NSImageView()
     private let check = NSImageView()
+    private var iconLeading: NSLayoutConstraint?
+
+    /// Tree depth indent for broot results (0 in a plain folder).
+    var indent: CGFloat = 0 { didSet { iconLeading?.constant = Z(4) + indent } }
 
     init(id: NSUserInterfaceItemIdentifier) {
         super.init(frame: .zero)
         identifier = id
         label.translatesAutoresizingMaskIntoConstraints = false
         label.lineBreakMode = .byTruncatingMiddle
-        label.font = .systemFont(ofSize: 12)
+        label.font = .systemFont(ofSize: Z(12))
         // Outlets used by AppKit to draw the drag image for this row.
         textField = label
         if id.rawValue == "name" { imageView = icon }
@@ -825,10 +857,11 @@ final class ListCell: NSTableCellView {
             icon.translatesAutoresizingMaskIntoConstraints = false
             addSubview(icon)
             addSubview(label)
+            iconLeading = icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Z(4))
             NSLayoutConstraint.activate([
-                icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+                iconLeading!,
                 icon.centerYAnchor.constraint(equalTo: centerYAnchor),
-                icon.widthAnchor.constraint(equalToConstant: 18), icon.heightAnchor.constraint(equalToConstant: 18),
+                icon.widthAnchor.constraint(equalToConstant: Z(18)), icon.heightAnchor.constraint(equalToConstant: Z(18)),
                 label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 8),
                 label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
                 label.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -836,7 +869,7 @@ final class ListCell: NSTableCellView {
         default:
             label.alignment = .right
             label.textColor = .secondaryLabelColor
-            label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+            label.font = .monospacedDigitSystemFont(ofSize: Z(11), weight: .regular)
             addSubview(label)
             NSLayoutConstraint.activate([
                 label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
@@ -850,7 +883,7 @@ final class ListCell: NSTableCellView {
     required init?(coder: NSCoder) { fatalError() }
 
     /// List names are one point larger than grid labels (captools 12 vs 10).
-    static func nameSize(_ textSize: CGFloat) -> CGFloat { textSize + 2 }
+    static func nameSize(_ textSize: CGFloat) -> CGFloat { Z(textSize + 2) }
 
     var nameFontSize: CGFloat = 12 {
         didSet { if label.font?.pointSize != nameFontSize { label.font = .systemFont(ofSize: nameFontSize) } }
@@ -858,9 +891,29 @@ final class ListCell: NSTableCellView {
 
     var tagColors: [NSColor] = []
 
-    func setName(_ name: String, icon image: NSImage, hidden: Bool) {
-        label.attributedStringValue = Tags.label(name, colors: tagColors, font: .systemFont(ofSize: nameFontSize),
-                                                 textColor: .labelColor, alignment: .left)
+    /// `matches` are broot's matched character positions in `name`
+    /// (Unicode scalar indices); `dimmed` greys rows shown only as parents
+    /// of matches, like broot does.
+    func setName(_ name: String, icon image: NSImage, hidden: Bool, matches: [UInt32] = [], dimmed: Bool = false) {
+        let s = NSMutableAttributedString(attributedString: Tags.label(
+            name, colors: tagColors, font: .systemFont(ofSize: nameFontSize),
+            textColor: dimmed ? .secondaryLabelColor : .labelColor, alignment: .left))
+        if !matches.isEmpty {
+            // The name is the tail of the label (tag dots come first).
+            let base = s.length - (name as NSString).length
+            let wanted = Set(matches)
+            let bold = NSFont.systemFont(ofSize: nameFontSize, weight: .bold)
+            var utf16 = 0
+            for (i, scalar) in name.unicodeScalars.enumerated() {
+                let len = scalar.utf16.count
+                if wanted.contains(UInt32(i)) {
+                    let r = NSRange(location: base + utf16, length: len)
+                    s.addAttributes([.font: bold, .foregroundColor: NSColor.controlAccentColor], range: r)
+                }
+                utf16 += len
+            }
+        }
+        label.attributedStringValue = s
         icon.image = image
         alphaValue = hidden ? 0.55 : 1
     }
@@ -949,7 +1002,7 @@ final class SelectionBadge: NSView {
         layer?.shadowOpacity = 0.25
         layer?.shadowRadius = 4
         layer?.shadowOffset = CGSize(width: 0, height: -1)
-        label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+        label.font = .monospacedDigitSystemFont(ofSize: Z(11), weight: .semibold)
         label.textColor = .white
         addSubview(label)
         isHidden = true
@@ -987,7 +1040,7 @@ final class AccessNeededView: NSView {
         self.fm = fm
         super.init(frame: .zero)
         let icon = NSImageView(image: NSImage(systemSymbolName: "lock.shield", accessibilityDescription: nil) ?? NSImage())
-        icon.symbolConfiguration = .init(pointSize: 44, weight: .light)
+        icon.symbolConfiguration = .init(pointSize: Z(44), weight: .light)
         icon.contentTintColor = .secondaryLabelColor
         title.alignment = .center
         body.alignment = .center
@@ -1023,9 +1076,9 @@ final class AccessNeededView: NSView {
     func show(for tab: Tab) {
         path = tab.path
         let name = tab.isTrash ? "the Trash" : "“\(tab.name)”"
-        title.stringValue = "Filofinder needs permission to show \(name)"
+        title.stringValue = "FiloBroot needs permission to show \(name)"
         body.stringValue = "macOS protects this location. In System Settings → Privacy & Security → Full Disk Access, "
-            + "turn on Filofinder, then click Try Again. Filofinder only reads folders you open."
+            + "turn on FiloBroot, then click Try Again. FiloBroot only reads folders you open."
     }
 
     @objc private func openSettings() {

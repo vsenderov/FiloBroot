@@ -10,14 +10,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var launched = false
     private var pendingReveal: [String]?
+    private var pendingOpen: [URL] = []
 
+    /// The window that handles requests from other apps (opens one if needed).
+    private func frontController() -> FileManagerWindowController {
+        if let key = windows.first(where: { $0.window?.isKeyWindow == true }) { return key }
+        if let visible = windows.first(where: { $0.window?.isVisible == true }) { return visible }
+        openWindow(path: nil)
+        return windows.last!
+    }
+
+    /// The 'mvis' reveal event (NSWorkspace activateFileViewerSelectingURLs,
+    /// i.e. "Reveal in Finder" in Cursor/VS Code/Electron apps when this app
+    /// is the NSFileViewer): the enclosing folder, items selected.
     private func reveal(_ paths: [String]) {
-        guard launched else { pendingReveal = paths; return }
-        let controller = windows.first { $0.window?.isVisible == true } ?? {
-            openWindow(path: nil)
-            return windows.last!
-        }()
+        guard launched else { pendingReveal = (pendingReveal ?? []) + paths; return }
+        let controller = frontController()
         controller.reveal(paths)
+        controller.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Open Documents ('odoc'): `open -a FiloBroot <path>`, dropping onto the
+    /// Dock icon, "Open With", or a folder handed to the default viewer.
+    /// Folders open in a new tab; files (and packages such as .app) open
+    /// their folder with the file selected.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard launched else { pendingOpen += urls; return }
+        let controller = frontController()
+        var files: [String] = []
+        for url in urls where url.isFileURL {
+            let path = url.path
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { continue }
+            if isDir.boolValue && !NSWorkspace.shared.isFilePackage(atPath: path) {
+                controller.openFolderInNewTab(path)
+            } else {
+                files.append(path)
+            }
+        }
+        if !files.isEmpty { controller.reveal(files) }
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -26,18 +58,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let on = DefaultBrowser.isDefault
         let alert = NSAlert()
         if on {
-            alert.messageText = "Filofinder is your default file browser"
-            alert.informativeText = "\"Show in Finder\" in other apps opens Filofinder. Switch back to Finder?"
+            alert.messageText = "FiloBroot is your default file browser"
+            alert.informativeText = "\"Show in Finder\" in other apps opens FiloBroot. Switch back to Finder?"
             alert.addButton(withTitle: "Use Finder")
         } else {
-            alert.messageText = "Make Filofinder the default file browser?"
-            alert.informativeText = "\"Show in Finder\" and \"Show in folder\" in other apps (browser downloads, editors…) will open Filofinder instead. Finder, the Desktop and the system Open/Save windows stay as they are.\n\nOther apps pick this up after they're restarted. You can switch back here at any time."
+            alert.messageText = "Make FiloBroot the default file browser?"
+            alert.informativeText = "\"Show in Finder\" and \"Show in folder\" in other apps (browser downloads, editors…) will open FiloBroot instead. Finder, the Desktop and the system Open/Save windows stay as they are.\n\nOther apps pick this up after they're restarted. You can switch back here at any time."
             alert.addButton(withTitle: "Make Default")
         }
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         DefaultBrowser.set(!on)
-        UI.hud(on ? "Finder is the default file browser again" : "Filofinder is now the default file browser",
+        UI.hud(on ? "Finder is the default file browser again" : "FiloBroot is now the default file browser",
                in: NSApp.keyWindow)
     }
 
@@ -45,7 +77,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = MainMenu.build()
         // A folder passed on the command line opens in the first tab;
         // otherwise start at the empty state, like captools.
-        let start = CommandLine.arguments.dropFirst().first { !$0.hasPrefix("-") }
+        var start = CommandLine.arguments.dropFirst().first { !$0.hasPrefix("-") }
+        // Launched to open a folder: start there instead of adding a tab.
+        if start == nil, let first = pendingOpen.first, first.isFileURL, isPlainFolder(first.path) {
+            start = first.path
+            pendingOpen.removeFirst()
+        }
         openWindow(path: start)
         if #available(macOS 14.0, *) {
             NSApp.activate()
@@ -55,6 +92,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         askForDiskAccessIfNeeded()
         launched = true
         if let paths = pendingReveal { pendingReveal = nil; reveal(paths) }
+        if !pendingOpen.isEmpty {
+            let urls = pendingOpen
+            pendingOpen = []
+            application(NSApp, open: urls)
+        }
+    }
+
+    private func isPlainFolder(_ path: String) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue
+            && !NSWorkspace.shared.isFilePackage(atPath: path)
     }
 
     private var accessSheet: DiskAccessSheet?

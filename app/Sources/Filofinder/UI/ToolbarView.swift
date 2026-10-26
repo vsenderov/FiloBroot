@@ -65,7 +65,7 @@ final class ToolbarView: DraggableBackgroundView {
         left.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         newFolderButton = b("folder.badge.plus", "New Folder", #selector(FileManagerWindowController.newFolder(_:)))
-        multiButton = b("square", "Enable multi-select (S)", #selector(FileManagerWindowController.toggleMultiSelect(_:)), toggle: true)
+        multiButton = b("square", "Enable multi-select", #selector(FileManagerWindowController.toggleMultiSelect(_:)), toggle: true)
         selectAllButton = b("checklist", "Select All (⌘A)", #selector(FileManagerWindowController.selectAllItems(_:)))
         copyButton = b("doc.on.doc", "Copy (⌘C)", #selector(FileManagerWindowController.copyItems(_:)))
         cutButton = b("scissors", "Cut (⌘X)", #selector(FileManagerWindowController.cutItems(_:)))
@@ -88,7 +88,7 @@ final class ToolbarView: DraggableBackgroundView {
         zoomOutButton = b("minus.magnifyingglass", "Zoom Out", #selector(FileManagerWindowController.zoomOut(_:)))
         zoomInButton = b("plus.magnifyingglass", "Zoom In", #selector(FileManagerWindowController.zoomIn(_:)))
         pageLabel = UI.label("1/1", size: 10)
-        pageLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        pageLabel.font = .monospacedDigitSystemFont(ofSize: Z(10), weight: .regular)
         pageGroup = UI.hstack([UI.separator(),
                                b("chevron.up", "Page Up", #selector(FileManagerWindowController.pageUpAction(_:))),
                                pageLabel,
@@ -190,7 +190,7 @@ final class ToolbarView: DraggableBackgroundView {
         multiButton.state = fm.multiSelect ? .on : .off
         multiButton.image = NSImage(systemSymbolName: fm.multiSelect ? "checkmark.square" : "square",
                                     accessibilityDescription: "Multi-select")
-        multiButton.toolTip = fm.multiSelect ? "Disable multi-select (S)" : "Enable multi-select (S)"
+        multiButton.toolTip = fm.multiSelect ? "Disable multi-select" : "Enable multi-select"
         newFolderButton.isEnabled = idle
         for button: NSButton in [copyButton!, cutButton!, binActionButton!, deleteButton!] {
             button.isEnabled = hasSel && idle
@@ -258,7 +258,7 @@ final class ToolbarView: DraggableBackgroundView {
         let rest = NSAttributedString(string: "/\(total)", attributes: [.foregroundColor: NSColor.tertiaryLabelColor])
         let s = NSMutableAttributedString(attributedString: cur)
         s.append(rest)
-        s.addAttribute(.font, value: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular),
+        s.addAttribute(.font, value: NSFont.monospacedDigitSystemFont(ofSize: Z(10), weight: .regular),
                        range: NSRange(location: 0, length: s.length))
         pageLabel.attributedStringValue = s
     }
@@ -285,7 +285,7 @@ final class ActionCluster: NSView {
             strip.leadingAnchor.constraint(equalTo: leadingAnchor),
             strip.topAnchor.constraint(equalTo: topAnchor),
             strip.bottomAnchor.constraint(equalTo: bottomAnchor),
-            strip.widthAnchor.constraint(equalToConstant: 4),
+            strip.widthAnchor.constraint(equalToConstant: Z(4)),
             stack.leadingAnchor.constraint(equalTo: strip.trailingAnchor, constant: 6),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 2),

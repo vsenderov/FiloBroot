@@ -9,14 +9,14 @@ enum MainMenu {
         let main = NSMenu()
 
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About Filofinder", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About FiloBroot", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Default File Browser…", action: #selector(AppDelegate.toggleDefaultFileBrowser(_:)),
                         keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide Filofinder", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Quit Filofinder", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        add(appMenu, titled: "Filofinder", to: main)
+        appMenu.addItem(withTitle: "Hide FiloBroot", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Quit FiloBroot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        add(appMenu, titled: "FiloBroot", to: main)
 
         let file = NSMenu(title: "File")
         file.addItem(withTitle: "New Window", action: #selector(AppDelegate.newWindow(_:)), keyEquivalent: "n")
@@ -46,8 +46,22 @@ enum MainMenu {
         view.addItem(withTitle: "List View", action: #selector(FM.setListView(_:)), keyEquivalent: "1")
         view.addItem(withTitle: "Grid View", action: #selector(FM.setGridView(_:)), keyEquivalent: "2")
         view.addItem(.separator())
-        view.addItem(withTitle: "Zoom In", action: #selector(FM.zoomIn(_:)), keyEquivalent: "+")
-        view.addItem(withTitle: "Zoom Out", action: #selector(FM.zoomOut(_:)), keyEquivalent: "-")
+        // Whole-UI zoom, like a browser: ⌘+ (also ⌘= without Shift), ⌘−, ⌘0.
+        view.addItem(withTitle: "Zoom In", action: #selector(FM.uiZoomIn(_:)), keyEquivalent: "+")
+        let zoomInEquals = NSMenuItem(title: "Zoom In", action: #selector(FM.uiZoomIn(_:)), keyEquivalent: "=")
+        zoomInEquals.isHidden = true
+        zoomInEquals.allowsKeyEquivalentWhenHidden = true
+        view.addItem(zoomInEquals)
+        view.addItem(withTitle: "Zoom Out", action: #selector(FM.uiZoomOut(_:)), keyEquivalent: "-")
+        view.addItem(withTitle: "Actual Size", action: #selector(FM.uiZoomReset(_:)), keyEquivalent: "0")
+        view.addItem(.separator())
+        // Grid icon size only (also ⌘-scroll).
+        let biggerIcons = NSMenuItem(title: "Bigger Icons", action: #selector(FM.zoomIn(_:)), keyEquivalent: "+")
+        biggerIcons.keyEquivalentModifierMask = [.command, .control]
+        view.addItem(biggerIcons)
+        let smallerIcons = NSMenuItem(title: "Smaller Icons", action: #selector(FM.zoomOut(_:)), keyEquivalent: "-")
+        smallerIcons.keyEquivalentModifierMask = [.command, .control]
+        view.addItem(smallerIcons)
         let bigger = NSMenuItem(title: "Bigger Name Text", action: #selector(FM.textLarger(_:)), keyEquivalent: "+")
         bigger.keyEquivalentModifierMask = [.command, .option]
         view.addItem(bigger)
@@ -81,7 +95,8 @@ enum MainMenu {
         let home = NSMenuItem(title: "Home", action: #selector(FM.goHome(_:)), keyEquivalent: "h")
         home.keyEquivalentModifierMask = [.command, .shift]
         go.addItem(home)
-        let goto = NSMenuItem(title: "Go to Folder…", action: #selector(FM.focusPath(_:)), keyEquivalent: "g")
+        go.addItem(withTitle: "Edit Address Bar", action: #selector(FM.focusAddressBar(_:)), keyEquivalent: "l")
+        let goto = NSMenuItem(title: "Go to Folder…", action: #selector(FM.focusAddressBar(_:)), keyEquivalent: "g")
         goto.keyEquivalentModifierMask = [.command, .shift]
         go.addItem(goto)
         add(go, titled: "Go", to: main)

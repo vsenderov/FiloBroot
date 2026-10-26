@@ -7,7 +7,19 @@ final class Tab {
     var path: String
     var back: [String] = []
     var forward: [String] = []
+    /// What the panel shows: the plain folder, or broot's filtered tree
+    /// while a query is active.
     var listing: ListingHandle?
+    /// The plain folder listing, kept while a broot search is shown so
+    /// clearing the query restores it instantly.
+    var folderListing: ListingHandle?
+    /// The broot search currently running for this tab; replaced (and the old
+    /// one cancelled) on every keystroke.
+    var treeSearch: TreeSearch?
+    /// Last broot error (bad regex, timeout) for the status bar.
+    var treeError: String?
+    /// True while the panel shows broot results (always rendered as a list).
+    var isTree: Bool { listing?.isTree() ?? false }
     /// Rows fetched from Rust so far, filled lazily as views scroll.
     var rows: [EntryRow?] = []
     var selection = Set<String>()

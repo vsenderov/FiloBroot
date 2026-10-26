@@ -28,8 +28,8 @@ final class PaneView: NSView {
             v.translatesAutoresizingMaskIntoConstraints = false
             v.widthAnchor.constraint(equalTo: column.widthAnchor).isActive = true
         }
-        header.heightAnchor.constraint(equalToConstant: 36).isActive = true
-        footer.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        header.heightAnchor.constraint(equalToConstant: Z(36)).isActive = true
+        footer.heightAnchor.constraint(equalToConstant: Z(24)).isActive = true
         panel.setContentHuggingPriority(.init(1), for: .vertical)
         addSubview(column)
 
@@ -82,7 +82,7 @@ final class PaneView: NSView {
 /// breadcrumbs · filter · tab picker · close.
 final class PanelHeader: NSView {
     private unowned let fm: FileManagerWindowController
-    private let side: Side
+    let side: Side
     private let strip = NSView()
     private let backButton: NSButton
     private let forwardButton: NSButton
@@ -114,8 +114,9 @@ final class PanelHeader: NSView {
             self.fm.focus(self.side)
             self.fm.setQuery(q)
         }
+        search.onCommand = { [weak fm] sel in fm?.searchFieldCommand(sel) ?? false }
         tabPicker.controlSize = .small
-        tabPicker.font = .systemFont(ofSize: 11)
+        tabPicker.font = .systemFont(ofSize: Z(11))
         tabPicker.target = self
         tabPicker.action = #selector(pickTab)
         tabPicker.toolTip = side == .left ? "Switch left panel tab" : "Switch right panel tab"
@@ -124,7 +125,7 @@ final class PanelHeader: NSView {
         strip.wantsLayer = true
         strip.translatesAutoresizingMaskIntoConstraints = false
         let folder = NSImageView(image: NSImage(systemSymbolName: "folder", accessibilityDescription: nil) ?? NSImage())
-        folder.symbolConfiguration = .init(pointSize: 12, weight: .regular)
+        folder.symbolConfiguration = .init(pointSize: Z(12), weight: .regular)
         folder.contentTintColor = side.tone.color
         let crumbsClip = NSView()
         crumbsClip.translatesAutoresizingMaskIntoConstraints = false
@@ -138,7 +139,7 @@ final class PanelHeader: NSView {
             crumbs.leadingAnchor.constraint(greaterThanOrEqualTo: crumbsClip.leadingAnchor).withPriority(.init(100)),
             crumbs.leadingAnchor.constraint(equalTo: crumbsClip.leadingAnchor).withPriority(.init(90)),
             crumbs.centerYAnchor.constraint(equalTo: crumbsClip.centerYAnchor),
-            crumbsClip.heightAnchor.constraint(equalToConstant: 24),
+            crumbsClip.heightAnchor.constraint(equalToConstant: Z(24)),
         ])
         let row = UI.hstack([backButton, forwardButton, refreshButton, folder, crumbsClip, search, tabPicker, closeButton], spacing: 4)
         addSubview(strip)
@@ -147,7 +148,7 @@ final class PanelHeader: NSView {
             strip.leadingAnchor.constraint(equalTo: leadingAnchor),
             strip.topAnchor.constraint(equalTo: topAnchor),
             strip.bottomAnchor.constraint(equalTo: bottomAnchor),
-            strip.widthAnchor.constraint(equalToConstant: 4),
+            strip.widthAnchor.constraint(equalToConstant: Z(4)),
             row.leadingAnchor.constraint(equalTo: strip.trailingAnchor, constant: 6),
             row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
             row.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -189,7 +190,7 @@ final class PanelHeader: NSView {
         for (i, part) in shown.enumerated() {
             if i > 0 {
                 let chevron = NSImageView(image: NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) ?? NSImage())
-                chevron.symbolConfiguration = .init(pointSize: 8, weight: .semibold)
+                chevron.symbolConfiguration = .init(pointSize: Z(8), weight: .semibold)
                 chevron.contentTintColor = .tertiaryLabelColor
                 crumbs.addArrangedSubview(chevron)
             }
@@ -199,7 +200,7 @@ final class PanelHeader: NSView {
             b.identifier = NSUserInterfaceItemIdentifier(part.1)
             b.toolTip = part.1
             b.attributedTitle = NSAttributedString(string: part.0, attributes: [
-                .font: NSFont.systemFont(ofSize: 11, weight: last ? .semibold : .regular),
+                .font: NSFont.systemFont(ofSize: Z(11), weight: last ? .semibold : .regular),
                 .foregroundColor: last ? NSColor.labelColor : NSColor.secondaryLabelColor,
             ])
             crumbs.addArrangedSubview(b)

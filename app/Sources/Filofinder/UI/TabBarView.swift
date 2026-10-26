@@ -81,7 +81,7 @@ private final class TabChip: NSView {
             ? PlaceColor.icon("folder.fill", color: PlaceColor.muted(PlaceColor.color(for: tab.path), strength: 0.85),
                               size: 13, weight: .semibold)
             : NSImage(systemSymbolName: "folder", accessibilityDescription: nil)) ?? NSImage())
-        icon.symbolConfiguration = active ? nil : .init(pointSize: 13, weight: .regular)
+        icon.symbolConfiguration = active ? nil : .init(pointSize: Z(13), weight: .regular)
         icon.contentTintColor = active ? nil : .secondaryLabelColor
         let name = UI.label(tab.name, size: 12.5, weight: active ? .semibold : .regular,
                             color: active ? .labelColor : .secondaryLabelColor)
@@ -96,15 +96,15 @@ private final class TabChip: NSView {
             row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 11),
             row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -5),
             row.centerYAnchor.constraint(equalTo: centerYAnchor),
-            heightAnchor.constraint(equalToConstant: 28),
+            heightAnchor.constraint(equalToConstant: Z(28)),
             widthAnchor.constraint(greaterThanOrEqualToConstant: 96),
-            close.widthAnchor.constraint(equalToConstant: 18),
+            close.widthAnchor.constraint(equalToConstant: Z(18)),
         ])
         if !canClose { close.removeFromSuperview() }
         if tab.isPinned {
             // Pinned: a small pin where the close button would be.
             let pin = NSImageView(image: NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned") ?? NSImage())
-            pin.symbolConfiguration = .init(pointSize: 9, weight: .semibold)
+            pin.symbolConfiguration = .init(pointSize: Z(9), weight: .semibold)
             pin.contentTintColor = .tertiaryLabelColor
             pin.unregisterDraggedTypes()
             row.addArrangedSubview(pin)

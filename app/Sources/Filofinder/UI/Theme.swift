@@ -1,5 +1,39 @@
 import AppKit
 
+/// Whole-UI zoom (⌘+ / ⌘− / ⌘0), like a browser's page zoom: every font,
+/// symbol, row height, icon and bar height in the app is a base size passed
+/// through `Z(_:)`. Changing the level rebuilds each window's views at the
+/// new scale (the state lives in the controller, so nothing is lost). The
+/// level is saved in UserDefaults ("uiZoom").
+enum UIZoom {
+    static let levels: [CGFloat] = [0.75, 0.85, 0.9, 1.0, 1.1, 1.25, 1.4, 1.6, 1.8, 2.0]
+    static let changed = Notification.Name("FiloBrootUIZoomChanged")
+    private static let key = "uiZoom"
+
+    /// Current scale factor (1 = 100%).
+    private(set) static var factor: CGFloat = {
+        let v = UserDefaults.standard.object(forKey: key) as? Double ?? 1
+        return min(max(CGFloat(v), levels.first!), levels.last!)
+    }()
+
+    static func set(_ value: CGFloat) {
+        let v = min(max(value, levels.first!), levels.last!)
+        guard abs(v - factor) > 0.001 else { NSSound.beep(); return }
+        factor = v
+        UserDefaults.standard.set(Double(v), forKey: key)
+        NotificationCenter.default.post(name: changed, object: nil)
+    }
+
+    static func zoomIn() { set(levels.first { $0 > factor + 0.001 } ?? levels.last!) }
+    static func zoomOut() { set(levels.last { $0 < factor - 0.001 } ?? levels.first!) }
+    static func reset() { set(1) }
+
+    static var percent: String { "\(Int((factor * 100).rounded()))%" }
+}
+
+/// A base (100%) size scaled by the whole-UI zoom level.
+func Z(_ base: CGFloat) -> CGFloat { base * UIZoom.factor }
+
 /// captools' panel identity colours, as macOS system colours (UI-SPEC §1).
 enum Tone {
     case left, right, bin, preview
@@ -22,7 +56,7 @@ enum UI {
                            toggle: Bool = false, size: CGFloat = 28) -> NSButton {
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip) ?? NSImage()
         let b = NSButton(image: image, target: target, action: action)
-        b.symbolConfiguration = .init(pointSize: 13, weight: .medium)
+        b.symbolConfiguration = .init(pointSize: Z(13), weight: .medium)
         if #available(macOS 14.0, *) {
             b.bezelStyle = .toolbar
         } else {
@@ -33,8 +67,8 @@ enum UI {
         b.setAccessibilityLabel(tooltip)
         b.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            b.widthAnchor.constraint(equalToConstant: size),
-            b.heightAnchor.constraint(equalToConstant: size - 4),
+            b.widthAnchor.constraint(equalToConstant: Z(size)),
+            b.heightAnchor.constraint(equalToConstant: Z(size - 4)),
         ])
         return b
     }
@@ -46,11 +80,11 @@ enum UI {
         if let symbol {
             b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip)
             b.imagePosition = .imageLeading
-            b.symbolConfiguration = .init(pointSize: 11, weight: .medium)
+            b.symbolConfiguration = .init(pointSize: Z(11), weight: .medium)
         }
         b.bezelStyle = .rounded
         b.controlSize = .regular
-        b.font = .systemFont(ofSize: 11, weight: destructive ? .semibold : .regular)
+        b.font = .systemFont(ofSize: Z(11), weight: destructive ? .semibold : .regular)
         b.toolTip = tooltip
         if destructive {
             b.hasDestructiveAction = true
@@ -69,7 +103,7 @@ enum UI {
         v.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             v.widthAnchor.constraint(equalToConstant: 1),
-            v.heightAnchor.constraint(equalToConstant: height),
+            v.heightAnchor.constraint(equalToConstant: Z(height)),
         ])
         return v
     }
@@ -77,7 +111,7 @@ enum UI {
     static func label(_ text: String, size: CGFloat = 11, weight: NSFont.Weight = .regular,
                       color: NSColor = .secondaryLabelColor) -> NSTextField {
         let l = NSTextField(labelWithString: text)
-        l.font = .systemFont(ofSize: size, weight: weight)
+        l.font = .systemFont(ofSize: Z(size), weight: weight)
         l.textColor = color
         l.lineBreakMode = .byTruncatingTail
         l.translatesAutoresizingMaskIntoConstraints = false
@@ -100,7 +134,7 @@ enum UI {
         v.blendingMode = .withinWindow
         v.state = .followsWindowActiveState
         v.translatesAutoresizingMaskIntoConstraints = false
-        v.heightAnchor.constraint(equalToConstant: height).isActive = true
+        v.heightAnchor.constraint(equalToConstant: Z(height)).isActive = true
         return v
     }
 
@@ -146,7 +180,7 @@ final class HoverButton: NSButton {
                      pointSize: CGFloat = 13, weight: NSFont.Weight = .medium) {
         self.init(frame: .zero)
         image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip)
-        symbolConfiguration = .init(pointSize: pointSize, weight: weight)
+        symbolConfiguration = .init(pointSize: Z(pointSize), weight: weight)
         imagePosition = .imageOnly
         isBordered = false
         self.target = target
@@ -156,8 +190,8 @@ final class HoverButton: NSButton {
         wantsLayer = true
         translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: size),
-            heightAnchor.constraint(equalToConstant: size - 2),
+            widthAnchor.constraint(equalToConstant: Z(size)),
+            heightAnchor.constraint(equalToConstant: Z(size - 2)),
         ])
     }
 
@@ -202,7 +236,7 @@ final class NavCapsule: NSView {
             row.leadingAnchor.constraint(equalTo: leadingAnchor), row.trailingAnchor.constraint(equalTo: trailingAnchor),
             row.topAnchor.constraint(equalTo: topAnchor), row.bottomAnchor.constraint(equalTo: bottomAnchor),
             divider.widthAnchor.constraint(equalToConstant: 1),
-            divider.heightAnchor.constraint(equalToConstant: 14),
+            divider.heightAnchor.constraint(equalToConstant: Z(14)),
         ])
         self.divider = divider
     }
@@ -254,7 +288,7 @@ enum PlaceColor {
     /// sidebar or selection styles.
     static func icon(_ symbol: String, color: NSColor, size: CGFloat = 12.5, weight: NSFont.Weight = .regular) -> NSImage? {
         let img = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: size, weight: weight).applying(.init(paletteColors: [color])))
+            .withSymbolConfiguration(.init(pointSize: Z(size), weight: weight).applying(.init(paletteColors: [color])))
         img?.isTemplate = false
         return img
     }
