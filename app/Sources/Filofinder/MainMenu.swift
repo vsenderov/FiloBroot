@@ -1,5 +1,4 @@
 import AppKit
-import Sparkle
 
 /// The menu bar, built in code. Items target the first responder, so the
 /// key window's controller handles them. Shortcuts follow captools (UI-SPEC §14).
@@ -11,10 +10,6 @@ enum MainMenu {
 
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "About Filofinder", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        let updates = NSMenuItem(title: "Check for Updates…", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
-                                 keyEquivalent: "")
-        updates.target = Updater.controller
-        appMenu.addItem(updates)
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Default File Browser…", action: #selector(AppDelegate.toggleDefaultFileBrowser(_:)),
                         keyEquivalent: "")
