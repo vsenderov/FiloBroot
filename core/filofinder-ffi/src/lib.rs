@@ -42,6 +42,15 @@ pub struct EntryRow {
     /// Milliseconds since the Unix epoch.
     pub modified_ms: i64,
     pub hidden: bool,
+    /// Tree (broot) results only, else 0: 1 = direct child of the root.
+    /// `name` is then the path relative to the root, e.g. "src/main.rs".
+    pub depth: u16,
+    /// Tree results only: this row itself matched (false for the parent
+    /// folders kept to show where matches are).
+    pub direct_match: bool,
+    /// Tree results only: char indices (Unicode scalars) of the matched
+    /// characters in the last path component of `name`.
+    pub match_pos: Vec<u32>,
 }
 
 #[derive(uniffi::Record)]
@@ -158,7 +167,25 @@ impl ListingHandle {
             size: r.size,
             modified_ms: r.modified_ms,
             hidden: r.hidden,
+            depth: r.depth,
+            direct_match: r.direct_match,
+            match_pos: r.match_pos.to_vec(),
         })
+    }
+
+    /// True when this listing holds broot tree results.
+    pub fn is_tree(&self) -> bool {
+        self.lock().is_tree()
+    }
+
+    /// Tree results: display index of broot's best match.
+    pub fn tree_best(&self) -> Option<u32> {
+        self.lock().tree_best
+    }
+
+    /// Tree results: matches broot pruned out of the visible tree.
+    pub fn tree_unlisted(&self) -> u32 {
+        self.lock().tree_unlisted
     }
 
     pub fn stats(&self) -> ListingStats {
@@ -189,6 +216,125 @@ pub fn list_dir(path: String, show_hidden: bool, backend: ListBackend) -> Result
 #[uniffi::export]
 pub fn list_paths(paths: Vec<String>, title: String, show_hidden: bool) -> Arc<ListingHandle> {
     Arc::new(ListingHandle { inner: Mutex::new(core::list_paths(&paths, &title, show_hidden)) })
+}
+
+// MARK: broot tree search
+
+#[derive(Debug, uniffi::Error)]
+pub enum TreeSearchError {
+    /// `cancel()` was called; drop the result silently.
+    Cancelled,
+    /// The search ran past its time budget.
+    TimedOut,
+    /// Not a valid broot pattern (e.g. an unclosed regex).
+    BadPattern { message: String },
+    Failed { message: String },
+}
+
+impl std::fmt::Display for TreeSearchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Cancelled => f.write_str("search cancelled"),
+            Self::TimedOut => f.write_str("search took too long"),
+            Self::BadPattern { message } => write!(f, "invalid pattern: {message}"),
+            Self::Failed { message } => f.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for TreeSearchError {}
+
+impl From<filofinder_broot::TreeError> for TreeSearchError {
+    fn from(e: filofinder_broot::TreeError) -> Self {
+        use filofinder_broot::TreeError as E;
+        match e {
+            E::Cancelled => Self::Cancelled,
+            E::TimedOut => Self::TimedOut,
+            E::BadPattern(message) => Self::BadPattern { message },
+            E::Failed(message) => Self::Failed { message },
+        }
+    }
+}
+
+fn tree_listing(res: filofinder_broot::TreeResult) -> core::Listing {
+    use filofinder_broot::RowKind;
+    let entries = res
+        .rows
+        .into_iter()
+        .map(|r| core::TreeEntry {
+            subpath: r.subpath,
+            kind: match r.kind {
+                RowKind::Dir => core::Kind::Dir,
+                RowKind::File => core::Kind::File,
+                RowKind::SymlinkToDir | RowKind::Symlink | RowKind::BrokenSymlink => core::Kind::Symlink,
+            },
+            size: r.size,
+            modified_ms: r.modified_ms,
+            hidden: r.hidden,
+            file_id: r.file_id,
+            depth: r.depth,
+            direct_match: r.direct_match,
+            match_pos: r.match_pos,
+        })
+        .collect();
+    core::Listing::from_tree(
+        &res.root.to_string_lossy(),
+        entries,
+        res.best.map(|b| b as u32),
+        res.unlisted,
+        res.elapsed.as_micros() as u64,
+    )
+}
+
+/// One broot search, cancellable from another thread. Make a new one per
+/// keystroke: call `cancel()` on the previous one (main thread, instant),
+/// then `run` the new one on a background queue.
+#[derive(uniffi::Object)]
+pub struct TreeSearch {
+    search: filofinder_broot::Search,
+}
+
+#[uniffi::export]
+impl TreeSearch {
+    #[uniffi::constructor]
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self { search: filofinder_broot::Search::new() })
+    }
+
+    pub fn cancel(&self) {
+        self.search.cancel();
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.search.is_cancelled()
+    }
+
+    /// Runs broot on `root` with `pattern` (broot syntax) and returns the
+    /// tree as a listing (names relative to `root`). `max_rows` plays the
+    /// role of broot's screen height. `budget_ms` = 0 means no limit beyond
+    /// broot's own. Blocking: call it off the main thread.
+    pub fn run(
+        &self,
+        root: String,
+        pattern: String,
+        max_rows: u32,
+        show_hidden: bool,
+        respect_git_ignore: bool,
+        budget_ms: u32,
+    ) -> Result<Arc<ListingHandle>, TreeSearchError> {
+        let mut q = filofinder_broot::TreeQuery::new(root, pattern, max_rows as usize);
+        q.show_hidden = show_hidden;
+        q.respect_git_ignore = respect_git_ignore;
+        q.budget = (budget_ms > 0).then(|| std::time::Duration::from_millis(budget_ms as u64));
+        let res = self.search.run(&q)?;
+        Ok(Arc::new(ListingHandle { inner: Mutex::new(tree_listing(res)) }))
+    }
+}
+
+/// One-shot broot search without a cancel handle (see `TreeSearch`).
+#[uniffi::export]
+pub fn filter_tree(root: String, pattern: String, max_rows: u32, show_hidden: bool) -> Result<Arc<ListingHandle>, TreeSearchError> {
+    TreeSearch::new().run(root, pattern, max_rows, show_hidden, true, 10_000)
 }
 
 /// True for file types the UI treats as images (thumbnails, counts).

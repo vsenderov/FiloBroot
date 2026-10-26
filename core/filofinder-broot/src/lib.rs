@@ -61,6 +61,8 @@ pub struct TreeRow {
     pub kind: RowKind,
     pub size: u64,
     pub modified_ms: i64,
+    /// Inode number (0 where unavailable).
+    pub file_id: u64,
     pub hidden: bool,
     /// True when this line itself matches the pattern (false for the parent
     /// folders broot keeps to show where matches live).
@@ -318,6 +320,7 @@ fn row_from(line: &TreeLine, pattern: &broot::pattern::Pattern, on_path: bool) -
         kind,
         size: line.metadata.len(),
         modified_ms: modified_ms(&line.metadata),
+        file_id: file_id(&line.metadata),
         hidden: line.name.starts_with('.'),
         direct_match: line.direct_match,
         score: line.score,
@@ -348,6 +351,17 @@ fn match_positions(line: &TreeLine, pattern: &broot::pattern::Pattern, on_path: 
             .map(|m| m.pos.iter().map(|&p| p as u32).collect())
             .unwrap_or_default()
     }
+}
+
+#[cfg(unix)]
+fn file_id(md: &std::fs::Metadata) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    md.ino()
+}
+
+#[cfg(not(unix))]
+fn file_id(_: &std::fs::Metadata) -> u64 {
+    0
 }
 
 fn modified_ms(md: &std::fs::Metadata) -> i64 {

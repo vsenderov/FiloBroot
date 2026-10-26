@@ -6,7 +6,7 @@ pub mod natural;
 pub mod ops;
 pub mod unzip;
 
-pub use listing::{Backend, Kind, ListError, Listing, Row, SortField, is_image_ext, list_dir, list_paths};
+pub use listing::{Backend, Kind, ListError, Listing, Row, SortField, TreeEntry, is_image_ext, list_dir, list_paths};
 
 #[cfg(test)]
 mod tests {

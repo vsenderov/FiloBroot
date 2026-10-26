@@ -69,6 +69,28 @@ pub struct Row<'a> {
     pub modified_ms: i64,
     pub hidden: bool,
     pub file_id: u64,
+    /// Tree listings only (0 otherwise): 1 = direct child of the root.
+    pub depth: u16,
+    /// Tree listings only: whether this row itself matched the query
+    /// (false for parent folders kept to show where matches are).
+    pub direct_match: bool,
+    /// Tree listings only: char indices of matched characters in the last
+    /// path component of `name`.
+    pub match_pos: &'a [u32],
+}
+
+/// One row of a broot tree search, in tree order (see `Listing::from_tree`).
+pub struct TreeEntry {
+    /// Path relative to the root, e.g. `src/main.rs`.
+    pub subpath: String,
+    pub kind: Kind,
+    pub size: u64,
+    pub modified_ms: i64,
+    pub hidden: bool,
+    pub file_id: u64,
+    pub depth: u16,
+    pub direct_match: bool,
+    pub match_pos: Vec<u32>,
 }
 
 #[derive(Default)]
@@ -84,6 +106,16 @@ pub struct Listing {
     file_ids: Vec<u64>,
     /// Display order: indexes into the columns above.
     order: Vec<u32>,
+    /// Set for broot tree results: rows keep broot's order and the
+    /// columns below are filled.
+    tree: bool,
+    depths: Vec<u16>,
+    direct: Vec<bool>,
+    match_pos: Vec<Vec<u32>>,
+    /// Tree listings: matches broot left out of the visible tree.
+    pub tree_unlisted: u32,
+    /// Tree listings: display index of broot's best match.
+    pub tree_best: Option<u32>,
     /// Entries the OS refused to describe (permissions, races).
     pub unreadable: u32,
     pub list_micros: u64,
@@ -121,7 +153,47 @@ impl Listing {
             modified_ms: self.modified[col],
             hidden: self.hidden[col],
             file_id: self.file_ids[col],
+            depth: self.depths.get(col).copied().unwrap_or(0),
+            direct_match: self.direct.get(col).copied().unwrap_or(false),
+            match_pos: self.match_pos.get(col).map_or(&[][..], |v| v.as_slice()),
         })
+    }
+
+    /// True for broot tree results (rows are relative subpaths in tree order).
+    pub fn is_tree(&self) -> bool {
+        self.tree
+    }
+
+    /// A listing of broot tree results under `root`. Names are subpaths
+    /// relative to `root`; the order is broot's (parents before children,
+    /// siblings by broot's own ordering) and `set_view` keeps it.
+    pub fn from_tree(root: &str, entries: Vec<TreeEntry>, best: Option<u32>, unlisted: u32, micros: u64) -> Listing {
+        let root_path = Path::new(root);
+        let mut l = Listing {
+            path: root.to_string(),
+            parent: root_path.parent().map(|p| p.to_string_lossy().into_owned()),
+            tree: true,
+            tree_unlisted: unlisted,
+            tree_best: best,
+            list_micros: micros,
+            ..Default::default()
+        };
+        for e in entries {
+            let leaf = e.subpath.rsplit('/').next().unwrap_or(&e.subpath);
+            let kind = if e.kind == Kind::Dir && is_package(leaf) { Kind::Package } else { e.kind };
+            l.names.push_str(&e.subpath);
+            l.name_ends.push(l.names.len() as u32);
+            l.kinds.push(kind);
+            l.sizes.push(if kind == Kind::File { e.size } else { 0 });
+            l.modified.push(e.modified_ms);
+            l.hidden.push(e.hidden);
+            l.file_ids.push(e.file_id);
+            l.depths.push(e.depth);
+            l.direct.push(e.direct_match);
+            l.match_pos.push(e.match_pos);
+        }
+        l.order = (0..l.kinds.len() as u32).collect();
+        l
     }
 
     fn push(&mut self, e: RawEntry, show_hidden: bool) {
@@ -141,6 +213,7 @@ impl Listing {
 
     fn ext_at(&self, col: usize) -> &str {
         let name = self.name_at(col);
+        let name = name.rsplit('/').next().unwrap_or(name);
         match name.rfind('.') {
             Some(i) if i > 0 => &name[i + 1..],
             _ => "",
@@ -150,6 +223,11 @@ impl Listing {
     /// Recomputes the visible rows: filter by name (case-insensitive
     /// substring, like captools), then sort. Folders always come first.
     pub fn set_view(&mut self, field: SortField, descending: bool, query: &str) {
+        if self.tree {
+            // broot already filtered and ordered the tree; re-sorting would
+            // separate children from their parents.
+            return;
+        }
         let t = Instant::now();
         let q = query.trim().to_lowercase();
         let mut order: Vec<u32> = (0..self.kinds.len() as u32)

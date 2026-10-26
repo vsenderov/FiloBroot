@@ -12,4 +12,5 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 filofinder-core = { path = "../filofinder-core" }
+filofinder-broot = { path = "../filofinder-broot" }
 uniffi.workspace = true
