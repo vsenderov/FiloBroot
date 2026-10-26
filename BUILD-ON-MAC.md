@@ -97,7 +97,7 @@ broot filter:
 - [ ] Try `/\.md$/`, `p/src/main`, and a nonsense pattern (shows "No matching files"); a bad regex like `/[/` shows the broot error.
 - [ ] ↑/↓ move the selection; Enter on a folder makes it the root (filter cleared); Enter on a file opens it.
 - [ ] Space opens Quick Look on a nested match; ←/→ in Quick Look step through the rows.
-- [ ] Dragging a nested match to another app or folder copies it (⌥ for move, as in Finder); dropping onto the window works.
+- [ ] Dragging a nested match to another app or folder copies or moves it as FiloFinder did before; dropping files onto the window works.
 - [ ] ⌘⌫ trashes a nested match; ⌘Z puts it back; copy/cut/paste work on nested matches.
 - [ ] ⌫ removes the last pattern character, and with an empty pattern goes to the parent folder; Esc clears the pattern and restores the folder with the selection kept (a nested selection maps to its top-level folder).
 - [ ] The filter field in the bar mirrors what you type; typing in the field itself works the same, and ↑/↓/Enter there act on the list.
