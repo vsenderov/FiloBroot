@@ -10,6 +10,8 @@ final class PaneView: NSView {
     let footer = StatusBarView()
     private unowned let fm: FileManagerWindowController
     private let ring = NSView()
+    /// Single pane: the ring shows while the file list (not the Explorer) has focus.
+    private var singleCue = true
     private var tracking: NSTrackingArea?
 
     init(fm: FileManagerWindowController, side: Side) {
@@ -53,10 +55,15 @@ final class PaneView: NSView {
         let split = fm.splitMode
         header.isHidden = !split
         if split { header.update() }
-        let focused = split && fm.focused == side
+        let focused = split ? fm.focused == side : singleCue
         ring.isHidden = !focused
         ring.layer?.borderColor = side.tone.color.withAlphaComponent(0.7).cgColor
         panel.reload()
+    }
+
+    func setSingleCue(_ on: Bool) {
+        singleCue = on
+        if !fm.splitMode { ring.isHidden = !on }
     }
 
     /// The ring never intercepts clicks.

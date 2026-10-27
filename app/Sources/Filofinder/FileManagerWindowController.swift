@@ -128,6 +128,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         if splitMode { rightPane.panel.reload() }
         if wasMonitoring { frameMonitor.start(on: panel) }
         window?.makeFirstResponder(panel.focusTarget)
+        updateFocusCue()
         UI.hud("Zoom \(UIZoom.percent)", in: window)
     }
 
@@ -313,6 +314,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         updateStatus()
         window?.title = activeTab.name
         window?.representedURL = URL(fileURLWithPath: activeTab.path)
+        updateFocusCue()
     }
 
     private func updateStatus() {
@@ -374,6 +376,34 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     }
 
     var focusTarget: NSView { panel.focusTarget }
+
+    /// Tab / ⇧Tab (single pane): keyboard focus moves between the file list
+    /// and the Explorer, so typing filters through broot or locates in the tree.
+    func toggleExplorerFocus(fromExplorer: Bool) {
+        guard let window, !splitMode else { return }
+        if fromExplorer {
+            window.makeFirstResponder(panel.focusTarget)
+        } else if showTree && !tree.isHidden {
+            tree.focusOutline()
+        }
+        updateFocusCue()
+    }
+
+    /// Called from the first-responder hooks of the list, grid and Explorer.
+    /// Deferred, because resignFirstResponder runs before the next view is set.
+    func focusCueMayHaveChanged() {
+        DispatchQueue.main.async { [weak self] in self?.updateFocusCue() }
+    }
+
+    /// Coloured ring (the split-pane ring, left tone) around the file list
+    /// while it has focus; accent border around the Explorer while it does.
+    func updateFocusCue() {
+        guard !splitMode else { return }
+        if tree.isHidden, tree.hasKeyboardFocus { window?.makeFirstResponder(panel.focusTarget) }
+        let explorer = !tree.isHidden && tree.hasKeyboardFocus
+        leftPane.setSingleCue(!explorer)
+        tree.setFocusCue(explorer)
+    }
 
     func selectionDidChange() {
         if showPreview { syncPreviewToSelection() }
@@ -1202,6 +1232,9 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         case (48, []) where splitMode:                                              // ⇥ = other pane
             focus(focused.other)
             window?.makeFirstResponder(panel.focusTarget)
+            return true
+        case (48, []), (48, [.shift]):                                              // ⇥ / ⇧⇥ = Explorer
+            toggleExplorerFocus(fromExplorer: false)
             return true
         case (121, []): panel.page(1); return true                                  // Page Down
         case (116, []): panel.page(-1); return true                                 // Page Up

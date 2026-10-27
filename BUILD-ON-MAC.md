@@ -71,6 +71,7 @@ How it works: the bundle has the stable identifier `com.vsenderov.filobroot` and
 | ⌥⌘⌫ / ⌘Del | delete permanently (asks first) | |
 | Esc | clear the filter, then the selection | clear selection |
 | ⌘L (also ⇧⌘G) | Go to Folder sheet with the current path selected, so ⌘C copies it | ⇧⌘G sheet |
+| ⇥ / ⇧⇥ | move keyboard focus between the file list and the Explorer | other pane (split view, now hidden) |
 | ⌘+ / ⌘− / ⌘0 | whole-UI zoom / actual size | icon size |
 | ⌃⌘+ / ⌃⌘− | grid icon size | |
 | S | types "s" into the filter | multi-select mode (the toolbar button remains) |
@@ -109,6 +110,14 @@ Zoom:
 - [ ] ⌘+ / ⌘− / ⌘0 scale everything together (sidebar, tabs, toolbar, path crumbs, list rows, grid icons, status bar) and a HUD shows the percentage; the View menu shows "Actual Size (N%)".
 - [ ] The zoom level survives a relaunch.
 - [ ] Zooming with a filter active and with the preview pane open keeps things working.
+
+Focus (Tab):
+- [ ] With the file list focused, a coloured ring (the split-pane ring, blue) surrounds the file list. Press Tab: the ring disappears from the list, a 2 pt accent-colour border appears around the Explorer, and its selected row turns accent-coloured.
+- [ ] Typing in the Explorer locates rows in the tree (native type-select) and arrow keys move through it; Tab or ⇧Tab returns to the list, the ring comes back, and typing filters through broot again.
+- [ ] Clicking in the Explorer or in the file list moves the cue too. Clicking the filter field leaves the list ring on.
+- [ ] Tab does nothing odd while the filter field or the Go to Folder sheet is being edited (the key stays in the field).
+- [ ] With the folder tree hidden (toolbar button), Tab does nothing and the ring stays on the list. Hiding the tree while it has focus moves focus back to the list.
+- [ ] The cue survives ⌘+ / ⌘− and navigating from the Explorer (focus stays in the Explorer while you arrow through it).
 
 Explorer:
 - [ ] Arrow down onto Trash in the Explorer: the Trash opens and its row stays highlighted (it doesn't jump back to your home folder). Opening Trash from the toolbar highlights it too.

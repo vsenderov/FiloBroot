@@ -22,7 +22,9 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
     }
 
     private unowned let fm: FileManagerWindowController
-    private let outline = NSOutlineView()
+    private let outline = TreeOutlineView()
+    /// Accent border shown while the Explorer has keyboard focus.
+    private let focusRing = NSView()
     private var groups: [Node] = []
     private var isSyncing = false
 
@@ -61,8 +63,18 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
         scroll.autohidesScrollers = true
         scroll.translatesAutoresizingMaskIntoConstraints = false
 
+        // Tab leaves the Explorer for the file list; focus changes update the cue.
+        outline.onTab = { [weak fm] in fm?.toggleExplorerFocus(fromExplorer: true) }
+        outline.onFocusChange = { [weak fm] in fm?.focusCueMayHaveChanged() }
+        focusRing.wantsLayer = true
+        focusRing.layer?.borderWidth = 2
+        focusRing.layer?.cornerRadius = 2
+        focusRing.isHidden = true
+        focusRing.translatesAutoresizingMaskIntoConstraints = false
+
         addSubview(header)
         addSubview(scroll)
+        addSubview(focusRing)
         NSLayoutConstraint.activate([
             header.topAnchor.constraint(equalTo: topAnchor, constant: 6),
             header.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
@@ -72,6 +84,8 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
             scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
+            focusRing.leadingAnchor.constraint(equalTo: leadingAnchor), focusRing.trailingAnchor.constraint(equalTo: trailingAnchor),
+            focusRing.topAnchor.constraint(equalTo: topAnchor), focusRing.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
         for (b, sel) in [(previewsButton, #selector(togglePreviews)), (smallerButton, #selector(smallerPreviews)),
@@ -88,6 +102,22 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
+
+    /// The ring never intercepts clicks.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === focusRing ? nil : hit
+    }
+
+    /// True while the outline is the window's first responder.
+    var hasKeyboardFocus: Bool { window?.firstResponder === outline }
+
+    func focusOutline() { window?.makeFirstResponder(outline) }
+
+    func setFocusCue(_ on: Bool) {
+        focusRing.layer?.borderColor = NSColor.controlAccentColor.withAlphaComponent(0.8).cgColor
+        focusRing.isHidden = !on
+    }
 
     private func buildGroups() {
         let home = Tab.home
@@ -576,5 +606,33 @@ final class TreeThumb: NSImageView {
     override func mouseExited(with event: NSEvent) {
         popover?.close()
         popover = nil
+    }
+}
+
+/// The Explorer's outline: Tab / ⇧Tab hand keyboard focus back to the file
+/// list; everything else (arrows, type-select) stays NSOutlineView's.
+final class TreeOutlineView: NSOutlineView {
+    var onTab: (() -> Void)?
+    var onFocusChange: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])
+        if event.keyCode == 48, mods.subtracting(.shift).isEmpty {
+            onTab?()
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok { onFocusChange?() }
+        return ok
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let ok = super.resignFirstResponder()
+        if ok { onFocusChange?() }
+        return ok
     }
 }

@@ -478,6 +478,18 @@ final class ListTableView: NSTableView {
         if fm?.handleKey(event) != true { super.keyDown(with: event) }
     }
 
+    override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok { fm?.focusCueMayHaveChanged() }
+        return ok
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let ok = super.resignFirstResponder()
+        if ok { fm?.focusCueMayHaveChanged() }
+        return ok
+    }
+
     var onBoxSelect: ((Int, NSPoint)?) -> Void = { _ in }
 
     override func mouseDown(with event: NSEvent) {
@@ -512,6 +524,18 @@ final class GridCollectionView: NSCollectionView {
 
     override func keyDown(with event: NSEvent) {
         if fm?.handleKey(event) != true { super.keyDown(with: event) }
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok { fm?.focusCueMayHaveChanged() }
+        return ok
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let ok = super.resignFirstResponder()
+        if ok { fm?.focusCueMayHaveChanged() }
+        return ok
     }
 
     /// Live box-selection feedback: (count, pointer in this view), nil = hide.
