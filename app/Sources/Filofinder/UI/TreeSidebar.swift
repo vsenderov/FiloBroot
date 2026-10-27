@@ -48,7 +48,8 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
         outline.outlineTableColumn = column
         outline.headerView = nil
         outline.style = .sourceList
-        outline.rowSizeStyle = .small
+        // .custom: the source-list styles (.small etc.) override the cell fonts with a fixed size, ignoring zoom.
+        outline.rowSizeStyle = .custom
         outline.floatsGroupRows = false
         outline.indentationPerLevel = 8
         outline.dataSource = self
@@ -200,8 +201,8 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
     }
 
     func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-        guard let node = item as? Node, !node.isGroup else { return Z(24) }
-        return showPreviews && (node.previews?.isEmpty == false) ? max(Z(24), previewSize + 6) : Z(24)
+        guard let node = item as? Node, !node.isGroup else { return Z(26) }
+        return showPreviews && (node.previews?.isEmpty == false) ? max(Z(26), previewSize + 6) : Z(26)
     }
 
     /// Looks up a folder's first 3 images in the background, then updates
@@ -413,17 +414,17 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
         cell.addSubview(text)
         cell.textField = text
         if group {
-            text.font = .systemFont(ofSize: Z(11), weight: .semibold)
+            text.font = .systemFont(ofSize: Z(12), weight: .semibold)
             text.textColor = .secondaryLabelColor
             NSLayoutConstraint.activate([
                 text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
                 text.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
             ])
         } else {
-            text.font = .systemFont(ofSize: Z(12.5))
+            text.font = .systemFont(ofSize: Z(13.5))
             let image = NSImageView()
             image.unregisterDraggedTypes() // drops go to the outline row
-            image.symbolConfiguration = .init(pointSize: Z(12.5), weight: .regular)
+            image.symbolConfiguration = .init(pointSize: Z(13.5), weight: .regular)
             image.contentTintColor = .secondaryLabelColor
             image.translatesAutoresizingMaskIntoConstraints = false
             cell.addSubview(image)
