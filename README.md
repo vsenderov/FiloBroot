@@ -7,7 +7,7 @@ A bare-bones native macOS file manager: [FiloFinder](https://github.com/bipul052
 
 It can also act as the macOS **default file viewer**, so "Reveal in Finder" / "Show in Folder" in other apps opens it (see [BUILD-ON-MAC.md](BUILD-ON-MAC.md)).
 
-Everything else is FiloFinder: clickable path crumbs, a Go to Folder sheet (⇧⌘G or ⌘L; it shows the folder's path selected so ⌘C copies it), tabs, split view, folder tree, Quick Look, drag copy/move, cut & paste with undo, tags, Trash with Put Back. Sparkle auto-updates and the upstream release tooling were removed; the bundle ID is `com.vsenderov.filobroot`.
+Everything else is FiloFinder: clickable path crumbs, a Go to Folder sheet (⇧⌘G or ⌘L; it shows the folder's path selected so ⌘C copies it), tabs, folder tree, Quick Look, drag copy/move, cut & paste with undo, tags, Trash with Put Back. Dual pane is hidden (broken upstream: clicks and breadcrumbs in split panes don't react); the code is still in the tree. Sparkle auto-updates and the upstream release tooling were removed; the bundle ID is `com.vsenderov.filobroot`.
 
 ## Performance
 

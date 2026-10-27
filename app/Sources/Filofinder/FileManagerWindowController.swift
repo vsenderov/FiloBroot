@@ -679,8 +679,10 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     }
 
     @objc func openZip(_ sender: Any?) { notYet("ZIP browsing arrives in v0.2") }
-    /// ⌘M. Opens a second pane with another open tab, or a duplicate of the
-    /// current tab when it's the only one (captools behaviour).
+    /// Dual pane is hidden (broken upstream too): no toolbar button, menu item
+    /// or ⌘M calls this any more, and splitMode is never persisted, so it is
+    /// always off at launch. Opens a second pane with another open tab, or a
+    /// duplicate of the current tab when it's the only one (captools behaviour).
     @objc func toggleSplit(_ sender: Any?) {
         if splitMode {
             splitMode = false

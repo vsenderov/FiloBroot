@@ -75,8 +75,6 @@ enum MainMenu {
         let preview = NSMenuItem(title: "Preview Pane", action: #selector(FM.togglePreview(_:)), keyEquivalent: "p")
         preview.keyEquivalentModifierMask = [.command, .option]
         view.addItem(preview)
-        let splitItem = NSMenuItem(title: "Split View", action: #selector(FM.toggleSplit(_:)), keyEquivalent: "m")
-        view.addItem(splitItem)
         view.addItem(.separator())
         let hidden = NSMenuItem(title: "Show Hidden Files", action: #selector(FM.toggleHidden(_:)), keyEquivalent: ".")
         hidden.keyEquivalentModifierMask = [.command, .shift]
