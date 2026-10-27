@@ -84,8 +84,8 @@ Build and launch:
 - [ ] `scripts/build.sh --native` ends with `✓ …/build/FiloBroot.app`; the app opens on your home folder.
 
 Path and parent folder:
-- [ ] The path crumbs in the bar are clickable; clicking one opens that folder, and the last crumb is the current folder.
-- [ ] ⌘↑ and ⌫ (with an empty filter) go to the parent folder.
+- [ ] The path crumbs (single pane bar and each pane header in split view) are clickable; clicking one opens that folder, and the last crumb is the current folder.
+- [ ] ⌘↑ and ⌫ (with an empty filter) go to the parent folder, in single pane and in both panes of split view.
 - [ ] ⌘L (and ⇧⌘G) opens the Go to Folder sheet with the current path already selected; ⌘C copies it. Type `~/Downloads` and press Go to open it; focus returns to the list.
 - [ ] Go on `/etc/hosts` opens /etc with `hosts` selected.
 - [ ] Go on `../`, on `'~/My Folder'`, on `file:///Applications`, and on `~/My\ Folder` all work.
@@ -109,7 +109,7 @@ broot filter:
 Zoom:
 - [ ] ⌘+ / ⌘− / ⌘0 scale everything together (sidebar, tabs, toolbar, path crumbs, list rows, grid icons, status bar) and a HUD shows the percentage; the View menu shows "Actual Size (N%)".
 - [ ] The zoom level survives a relaunch.
-- [ ] Zooming with a filter active and with the preview pane open keeps things working.
+- [ ] Zooming with a filter active, in split view, and with the preview pane open keeps things working.
 
 Focus (Tab):
 - [ ] With the file list focused, a coloured ring (the split-pane ring, blue) surrounds the file list. Press Tab: the ring disappears from the list, a 2 pt accent-colour border appears around the Explorer, and its selected row turns accent-coloured.
@@ -123,8 +123,7 @@ Explorer:
 - [ ] Arrow down onto Trash in the Explorer: the Trash opens and its row stays highlighted (it doesn't jump back to your home folder). Opening Trash from the toolbar highlights it too.
 
 Unchanged behaviour (regression):
-- [ ] Dual pane is hidden (broken upstream): no split button in the toolbar, no Split View item in the View menu, and ⌘M does nothing.
-- [ ] Tabs, the folder tree, rename (Enter on a selected item), new folder, duplicate, tags, Trash with Put Back, zip extraction, and live refresh when files change elsewhere.
+- [ ] Tabs, split view (⌘M), the folder tree, rename (Enter on a selected item), new folder, duplicate, tags, Trash with Put Back, zip extraction, and live refresh when files change elsewhere.
 
 Default file viewer:
 - [ ] Run the `defaults write` above, restart Cursor, right-click a file → Reveal in Finder: FiloBroot opens its folder with the file selected.

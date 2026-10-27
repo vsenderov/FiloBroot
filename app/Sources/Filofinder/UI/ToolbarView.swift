@@ -8,6 +8,7 @@ final class ToolbarView: DraggableBackgroundView {
     // Left zone
     private var treeButton: NSButton!
     private var zipButton: NSButton!
+    private var splitButton: NSButton!
     private var optionsButton: NSButton!
     private var trashButton: NSButton!
     // Action cluster
@@ -57,7 +58,8 @@ final class ToolbarView: DraggableBackgroundView {
     private func build() {
         treeButton = b("sidebar.left", "Toggle Folder Tree", #selector(FileManagerWindowController.toggleTree(_:)), toggle: true)
         zipButton = b("archivebox", "Open & browse a ZIP file", #selector(FileManagerWindowController.openZip(_:)))
-        let left = UI.hstack([treeButton])
+        splitButton = b("rectangle.split.2x1", "Split View (⌘M)", #selector(FileManagerWindowController.toggleSplit(_:)), toggle: true)
+        let left = UI.hstack([treeButton, UI.separator(), splitButton])
         leftZone = left
         // The floating cluster must never squash these buttons.
         left.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -176,6 +178,9 @@ final class ToolbarView: DraggableBackgroundView {
         treeButton.toolTip = fm.splitMode ? "Folder Tree is available in full-screen view only" : "Toggle Folder Tree"
         zipButton.isEnabled = false
         zipButton.toolTip = "Open & browse a ZIP file — coming in v0.2"
+        splitButton.isEnabled = true
+        splitButton.state = fm.splitMode ? .on : .off
+        splitButton.toolTip = fm.splitMode ? "Exit Split View (⌘M)" : "Split View (⌘M)"
         optionsButton.contentTintColor = fm.showsHidden ? .controlAccentColor : nil
 
         cluster.tone = fm.splitMode ? fm.focused.tone : .left
