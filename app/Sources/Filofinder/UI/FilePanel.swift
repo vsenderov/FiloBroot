@@ -743,10 +743,9 @@ final class GridTile: NSCollectionViewItem {
     }
 
     func configure(entry: EntryRow, path: String, cell: CGFloat, previewing: Bool) {
-        if name.font?.pointSize != labelSize {
-            name.font = .systemFont(ofSize: labelSize)
-            labelHeightConstraint?.constant = Self.labelHeight(labelSize)
-        }
+        if name.font?.pointSize != labelSize { name.font = .systemFont(ofSize: labelSize) }
+        // Always set: the font created in loadView can already equal labelSize, which left the constraint at its initial 14 pt and clipped the name.
+        labelHeightConstraint?.constant = Self.labelHeight(labelSize)
         op?.cancel()
         ThumbnailLoader.shared.cancel(qlRequest)
         qlRequest = nil
