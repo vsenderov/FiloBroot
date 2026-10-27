@@ -221,6 +221,18 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
             outline.selectRowIndexes([outline.row(forItem: node)], byExtendingSelection: false)
             return
         }
+        // The Trash lives under the home folder but isn't part of the tree
+        // (reveal() skips it), so select its own row instead of letting
+        // ~/.Trash map to the Home favorite.
+        if fm.activeTab.isTrash,
+           let node = groups.flatMap({ $0.children ?? [] }).first(where: { $0.symbol == "trash" }) {
+            let row = outline.row(forItem: node)
+            if row >= 0 {
+                outline.selectRowIndexes([row], byExtendingSelection: false)
+                outline.scrollRowToVisible(row)
+            }
+            return
+        }
         for n in autoExpanded.reversed() where !isAncestorOrSelf(n.path, of: path) {
             outline.collapseItem(n)
         }

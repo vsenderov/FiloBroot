@@ -110,6 +110,9 @@ Zoom:
 - [ ] The zoom level survives a relaunch.
 - [ ] Zooming with a filter active and with the preview pane open keeps things working.
 
+Explorer:
+- [ ] Arrow down onto Trash in the Explorer: the Trash opens and its row stays highlighted (it doesn't jump back to your home folder). Opening Trash from the toolbar highlights it too.
+
 Unchanged behaviour (regression):
 - [ ] Dual pane is hidden (broken upstream): no split button in the toolbar, no Split View item in the View menu, and ⌘M does nothing.
 - [ ] Tabs, the folder tree, rename (Enter on a selected item), new folder, duplicate, tags, Trash with Put Back, zip extraction, and live refresh when files change elsewhere.
