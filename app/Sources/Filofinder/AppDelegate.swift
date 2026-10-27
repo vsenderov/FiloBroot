@@ -112,13 +112,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let env = ProcessInfo.processInfo.environment
         guard !DiskAccess.isGranted, !DiskAccess.dontAskAgain, env["FILOFINDER_SNAPSHOT"] == nil,
               let main = windows.first, let window = main.window else { return }
-        let sheet = DiskAccessSheet()
-        sheet.onGranted = { [weak main] in
-            UI.hud("Full Disk Access is on — every folder is available", in: main?.window)
-            main?.refresh(nil)
+        // FiloFinder's custom DiskAccessSheet hangs in an endless Auto Layout pass when presented (seen on macOS 26), so use a plain NSAlert instead. DiskAccessSheet stays in the code, unused.
+        _ = main
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Let FiloBroot work with your whole disk"
+            alert.informativeText = "FiloBroot needs Full Disk Access to show every folder, including the Trash and other protected places. Open Settings, turn on FiloBroot under Full Disk Access, then relaunch FiloBroot."
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "Later")
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = "Don’t show this again"
+            alert.beginSheetModal(for: window) { response in
+                DiskAccess.dontAskAgain = alert.suppressionButton?.state == .on
+                if response == .alertFirstButtonReturn { NSWorkspace.shared.open(DiskAccess.settingsURL) }
+            }
         }
-        accessSheet = sheet
-        DispatchQueue.main.async { sheet.present(on: window) }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
