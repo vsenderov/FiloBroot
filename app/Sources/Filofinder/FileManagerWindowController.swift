@@ -82,6 +82,9 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
                               backing: .buffered, defer: false)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
+        // Experimental: a system toolbar (even empty) makes macOS draw the larger traffic lights; our own bar is a plain view.
+        window.toolbar = NSToolbar(identifier: "FiloBrootMain")
+        window.toolbarStyle = .unified
         window.tabbingMode = .disallowed // captools has its own tab bar
         window.minSize = NSSize(width: 900, height: 480)
         window.setFrameAutosaveName("FilofinderMain")
