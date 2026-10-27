@@ -140,14 +140,20 @@ impl TreeQuery {
     }
 }
 
-/// broot's context: built-in default configuration (no user conf.hjson is
-/// read, so results don't depend on a terminal setup) and verb store.
+/// broot's context: built-in default configuration plus the user's own broot conf.hjson if one exists (read-only: broot's from_default_location() would write default files, so it is not used; an unreadable conf falls back to the defaults), and the verb store.
 /// Built once per process and shared by all searches (it's read-only).
 struct Ctx(AppContext);
 fn context() -> Result<&'static AppContext, TreeError> {
     static CTX: OnceLock<Result<Ctx, String>> = OnceLock::new();
     CTX.get_or_init(|| {
         let mut conf = Conf::default();
+        let conf_path = Conf::default_location();
+        if conf_path.exists() {
+            if let Err(e) = conf.read_file(conf_path.clone()) {
+                eprintln!("filofinder-broot: ignoring broot conf {}: {e}", conf_path.display());
+                conf = Conf::default();
+            }
+        }
         conf.true_colors = Some(false);
         let args = parse_default_flags("").map_err(|e| e.to_string())?;
         let verbs = VerbStore::new(&mut conf).map_err(|e| e.to_string())?;
