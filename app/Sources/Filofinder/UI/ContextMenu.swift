@@ -217,7 +217,8 @@ final class ContextMenuBuilder: NSObject {
 
     static func terminal(at path: String) {
         let ws = NSWorkspace.shared
-        guard let terminal = ws.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else { return }
+        // macOS has no default-terminal setting, so prefer Ghostty when it is installed and fall back to Terminal.
+        guard let terminal = ws.urlForApplication(withBundleIdentifier: "com.mitchellh.ghostty") ?? ws.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else { return }
         ws.open([URL(fileURLWithPath: path)], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
     }
 
