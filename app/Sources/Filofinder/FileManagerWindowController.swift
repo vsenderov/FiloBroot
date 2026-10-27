@@ -1082,7 +1082,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         let root = tab.path, hidden = showHidden, maxRows = Self.brootMaxRows
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result { try search.run(root: root, pattern: query, maxRows: maxRows, showHidden: hidden,
-                                                 respectGitIgnore: true, budgetMs: 10_000) }
+                                                 respectGitIgnore: true, budgetMs: 30_000) }
             DispatchQueue.main.async {
                 guard let self, tab.treeSearch === search else { return } // superseded
                 tab.treeSearch = nil
@@ -1104,7 +1104,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
                     let message: String
                     switch error as? TreeSearchError {
                     case .Cancelled?: return
-                    case .TimedOut?: message = "search took over 10 s, stopped"
+                    case .TimedOut?: message = "search took over 30 s, stopped"
                     case .BadPattern(let m)?: message = m
                     case .Failed(let m)?: message = m
                     case nil: message = "\(error)"

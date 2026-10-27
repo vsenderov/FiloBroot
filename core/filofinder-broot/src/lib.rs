@@ -135,7 +135,7 @@ impl TreeQuery {
             max_rows,
             show_hidden: false,
             respect_git_ignore: true,
-            budget: Some(Duration::from_secs(10)),
+            budget: Some(Duration::from_secs(30)),
         }
     }
 }
