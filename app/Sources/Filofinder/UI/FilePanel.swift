@@ -958,8 +958,7 @@ final class ListRowView: NSTableRowView {
 
     override func updateTrackingAreas() {
         trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-                                       owner: self))
+        // FiloBroot: no hover highlight on list rows. It stuck on the wrong row while scrolling with a still pointer (#5).
     }
 
     override func mouseEntered(with event: NSEvent) { hovered = true }
