@@ -33,14 +33,16 @@ GEN_SWIFT="$APP_PKG/Sources/Filofinder/Generated"
 LIB_DIR="$ROOT/build/lib"
 BUNDLE="$ROOT/build/FiloBroot.app"
 # Stable self-signed identity when present (keeps macOS permissions across
-# updates); ad-hoc otherwise.
+# updates); ad-hoc otherwise (anyone building from a fresh clone, and CI).
+# FILOFINDER_SIGN_ID overrides both ("-" is ad-hoc).
 # The identity lives in its own keychain (password in ~/.filofinder-signing),
 # so signing never needs an approval dialog.
 SIGN_KC="$HOME/Library/Keychains/filofinder-signing.keychain-db"
 SIGN_KC_PASS="$HOME/.filofinder-signing/keychain-password.txt"
 CODESIGN_KC=()
-if [[ -z "${FILOFINDER_SIGN_ID:-}" && -f "$SIGN_KC" && -f "$SIGN_KC_PASS" ]]; then
-  security unlock-keychain -p "$(cat "$SIGN_KC_PASS")" "$SIGN_KC"
+if [[ -z "${FILOFINDER_SIGN_ID:-}" && -f "$SIGN_KC" && -f "$SIGN_KC_PASS" ]] \
+   && security unlock-keychain -p "$(cat "$SIGN_KC_PASS")" "$SIGN_KC" 2>/dev/null \
+   && security find-certificate -c "Filofinder Dev" "$SIGN_KC" >/dev/null 2>&1; then
   SIGN_ID="Filofinder Dev"
   CODESIGN_KC=(--keychain "$SIGN_KC")
 else

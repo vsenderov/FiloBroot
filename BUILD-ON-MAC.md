@@ -1,6 +1,6 @@
 # Building and testing FiloBroot on a Mac
 
-Everything here was written on a Linux box without a Mac. The Rust side was compiled and tested there (and type-checked for `aarch64-apple-darwin`); the Swift side was only syntax-checked (`swiftc -parse`), plus a type-check of the broot calls against the generated UniFFI bindings. **The app has never been compiled against AppKit or run.** Expect a few compile errors on the first build; they should be small (a wrong AppKit method name, a missing label).
+The notes below started life on a Linux box without a Mac, where the Rust side was compiled and tested; the Swift side has since been built and run on macOS with `scripts/build.sh --native` (Apple Silicon). The universal (Intel) build and the manual checklist items are not all re-verified. For the short version see [README.md](README.md).
 
 ## 1. Prerequisites (once)
 
@@ -133,7 +133,6 @@ Default file viewer:
 
 ## 7. Unverified / known risks
 
-- **Nothing in Swift has been compiled against AppKit.** First-build compile errors are likely; fix as they come.
 - **Rename in a filtered tree**: row names are paths relative to the root (`a/b/c.txt`); renaming a nested match may get the path wrong. Rename from the unfiltered folder if it misbehaves.
 - **Live refresh in a filtered view** watches only the root folder; changes deep inside don't re-run the search until you type again.
 - **Zoom** scales sizes and fonts but not every padding or spacing constant, so very high zoom can look cramped. The ⌘+ key match (with a hidden ⌘= alternate) depends on the keyboard layout and is untested.
