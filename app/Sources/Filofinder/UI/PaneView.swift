@@ -9,7 +9,7 @@ final class PaneView: NSView {
     let panel: FilePanel
     let footer = StatusBarView()
     private unowned let fm: FileManagerWindowController
-    private let ring = NSView()
+    private let ring = ClickThroughView()
     /// Single pane: the ring shows while the file list (not the Explorer) has focus.
     private var singleCue = true
     private var tracking: NSTrackingArea?
@@ -66,11 +66,6 @@ final class PaneView: NSView {
         if !fm.splitMode { ring.isHidden = !on }
     }
 
-    /// The ring never intercepts clicks.
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        let hit = super.hitTest(point)
-        return hit === ring ? nil : hit
-    }
 
     override func updateTrackingAreas() {
         if let tracking { removeTrackingArea(tracking) }
