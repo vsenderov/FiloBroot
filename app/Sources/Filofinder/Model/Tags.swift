@@ -29,6 +29,8 @@ enum Tags {
 
     /// Colours of a file's tags (non-colour tags are ignored), cached.
     static func colorsFor(_ path: String) -> [NSColor] {
+        // FiloBroot: tag colours are turned off. Reading tags runs on the main thread and can block the whole window while macOS checks privacy permission for protected folders (Desktop, Documents…). Remove this line to bring them back.
+        return []
         if let hit = cache.object(forKey: path as NSString) as? [NSColor] { return hit }
         let names = (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
         let result = names.compactMap(color(named:))
