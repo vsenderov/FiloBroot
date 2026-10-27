@@ -1109,7 +1109,9 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
                     case .Failed(let m)?: message = m
                     case nil: message = "\(error)"
                     }
-                    // Keep the previous rows; say what went wrong.
+                    // Don't leave an earlier keystroke's results on screen; the empty list shows the error.
+                    tab.rows = []
+                    tab.selection = []
                     tab.treeError = message
                     tab.timing = "broot: \(message)"
                 }
