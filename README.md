@@ -98,8 +98,6 @@ special_paths: {
 
 ## Known issues
 
-- Finder tag colour dots are turned off in the file list and grid. Upstream FiloFinder reads tags on the main thread, which can freeze the window while macOS checks privacy permission ([#2](https://github.com/vsenderov/FiloBroot/issues/2)), so FiloBroot skips them. Tags still work in the sidebar and the right-click menu.
-- List rows have no hover highlight. Upstream's hover highlight stuck on the wrong row while scrolling ([#5](https://github.com/vsenderov/FiloBroot/issues/5)), so FiloBroot turns it off.
 - [#6](https://github.com/vsenderov/FiloBroot/issues/6): the window's traffic-light buttons are small.
 - Making FiloBroot the system-wide default folder handler did not work on macOS 26 in testing. The **FiloBroot → Default File Browser…** menu item and the `defaults write -g NSFileViewer` approach in [BUILD-ON-MAC.md](BUILD-ON-MAC.md) are experimental.
 - Intel and universal builds are untested.
