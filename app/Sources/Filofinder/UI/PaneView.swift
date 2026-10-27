@@ -1,5 +1,10 @@
 import AppKit
 
+/// The focus ring covers the whole pane, so it must not take clicks or scrolling away from the views below it.
+private final class PaneRingView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 /// One side of the window: [header (split only)] / file panel / status bar.
 /// In split view the focused pane gets a ring in its tone (captools: blue
 /// left, amber right), and hovering a pane focuses it.
@@ -9,7 +14,7 @@ final class PaneView: NSView {
     let panel: FilePanel
     let footer = StatusBarView()
     private unowned let fm: FileManagerWindowController
-    private let ring = NSView()
+    private let ring = PaneRingView()
     private var tracking: NSTrackingArea?
 
     init(fm: FileManagerWindowController, side: Side) {
