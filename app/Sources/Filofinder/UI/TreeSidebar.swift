@@ -24,7 +24,7 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
     private unowned let fm: FileManagerWindowController
     private let outline = TreeOutlineView()
     /// Accent border shown while the Explorer has keyboard focus.
-    private let focusRing = NSView()
+    private let focusRing = ClickThroughView()
     private var groups: [Node] = []
     private var isSyncing = false
 
@@ -102,12 +102,6 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
-
-    /// The ring never intercepts clicks.
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        let hit = super.hitTest(point)
-        return hit === focusRing ? nil : hit
-    }
 
     /// True while the outline is the window's first responder.
     var hasKeyboardFocus: Bool { window?.firstResponder === outline }
@@ -635,4 +629,9 @@ final class TreeOutlineView: NSOutlineView {
         if ok { onFocusChange?() }
         return ok
     }
+}
+
+/// Overlay that never takes clicks, so AppKit passes them to the views below it (the Explorer outline).
+final class ClickThroughView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
