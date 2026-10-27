@@ -221,6 +221,11 @@ final class TreeSidebar: NSVisualEffectView, NSOutlineViewDataSource, NSOutlineV
             outline.selectRowIndexes([outline.row(forItem: node)], byExtendingSelection: false)
             return
         }
+        // The same folder can appear twice (e.g. Documents as a Favorite and under the home row). If the selected row already points at the open folder, keep it instead of jumping to the other copy.
+        if let current = outline.item(atRow: outline.selectedRow) as? Node, !current.isGroup, current.path == path {
+            outline.scrollRowToVisible(outline.selectedRow)
+            return
+        }
         for n in autoExpanded.reversed() where !isAncestorOrSelf(n.path, of: path) {
             outline.collapseItem(n)
         }
