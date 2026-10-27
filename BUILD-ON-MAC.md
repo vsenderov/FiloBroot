@@ -133,7 +133,6 @@ Default file viewer:
 
 ## 7. Unverified / known risks
 
-- **Rename in a filtered tree**: row names are paths relative to the root (`a/b/c.txt`); renaming a nested match may get the path wrong. Rename from the unfiltered folder if it misbehaves.
 - **Live refresh in a filtered view** watches only the root folder; changes deep inside don't re-run the search until you type again.
 - **Zoom** scales sizes and fonts but not every padding or spacing constant, so very high zoom can look cramped. The ⌘+ key match (with a hidden ⌘= alternate) depends on the keyboard layout and is untested.
 - **Typing goes to the filter** only when the list has focus; toolbar buttons clicked while a text field is being edited act on files.
