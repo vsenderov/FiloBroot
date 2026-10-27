@@ -1,27 +1,13 @@
 import AppKit
 
-/// Path row: ← → ⟳ ⌂ [address bar] ⧉ ≡ [filter].
-/// The address bar is an editable text field with the folder's full POSIX
-/// path (⌘L to edit, Enter to go, Esc to cancel, ⌘C or ⧉ to copy). The
-/// original crumb buttons are one click away (≡) and remembered.
-final class BreadcrumbBar: NSVisualEffectView, NSTextFieldDelegate {
+/// captools Breadcrumbs (UI-SPEC §5): ← → ⟳ | ⌂ › crumbs … [filter].
+final class BreadcrumbBar: NSVisualEffectView {
     private unowned let fm: FileManagerWindowController
     private let backButton: NSButton
     private let forwardButton: NSButton
     private let refreshButton: NSButton
     private let crumbs = UI.hstack([], spacing: 2)
-    private let crumbsClip = NSView()
-    private let address = NSTextField()
-    private let copyButton: NSButton
-    private let crumbsButton: NSButton
     let search: PanelSearch
-
-    /// Crumb buttons instead of the address field (UserDefaults "pathCrumbs").
-    private var showCrumbs: Bool {
-        get { UserDefaults.standard.bool(forKey: "pathCrumbs") }
-        set { UserDefaults.standard.set(newValue, forKey: "pathCrumbs") }
-    }
-    private var editing = false
 
     init(fm: FileManagerWindowController) {
         self.fm = fm
@@ -32,30 +18,7 @@ final class BreadcrumbBar: NSVisualEffectView, NSTextFieldDelegate {
         refreshButton = HoverButton(symbol: "arrow.clockwise", tooltip: "Refresh (F5)", target: fm,
                                     action: #selector(FileManagerWindowController.refresh(_:)), size: 28, pointSize: 12.5)
         search = PanelSearch(tone: .left, width: 200)
-        copyButton = HoverButton(symbol: "doc.on.doc", tooltip: "Copy this folder's path", target: nil, action: nil,
-                                 size: 26, pointSize: 12)
-        crumbsButton = HoverButton(symbol: "chevron.forward.2", tooltip: "Show the path as buttons / as text",
-                                   target: nil, action: nil, size: 26, pointSize: 12)
         super.init(frame: .zero)
-        copyButton.target = self
-        copyButton.action = #selector(copyPath)
-        crumbsButton.target = self
-        crumbsButton.action = #selector(toggleCrumbs)
-        address.font = .systemFont(ofSize: Z(12))
-        address.isEditable = true
-        address.isSelectable = true
-        address.isBezeled = true
-        address.bezelStyle = .roundedBezel
-        address.focusRingType = .default
-        address.lineBreakMode = .byTruncatingHead
-        address.cell?.usesSingleLineMode = true
-        address.cell?.isScrollable = true
-        address.placeholderString = "Path (⌘L)"
-        address.toolTip = "Path of this folder: ⌘L to type or paste a path, Enter to go, ⌘C to copy"
-        address.delegate = self
-        address.translatesAutoresizingMaskIntoConstraints = false
-        address.setContentHuggingPriority(.init(1), for: .horizontal)
-        address.setContentCompressionResistancePriority(.init(1), for: .horizontal)
         // Same material as the toolbar: toolbar, tabs and path read as one header.
         material = .titlebar
         blendingMode = .withinWindow
@@ -66,6 +29,7 @@ final class BreadcrumbBar: NSVisualEffectView, NSTextFieldDelegate {
         let home = HoverButton(symbol: "house", tooltip: "Home (⇧⌘H)", target: fm,
                                action: #selector(FileManagerWindowController.goHome(_:)), size: 28, pointSize: 12.5)
         crumbs.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let crumbsClip = NSView()
         crumbsClip.translatesAutoresizingMaskIntoConstraints = false
         crumbsClip.addSubview(crumbs)
         crumbsClip.setContentHuggingPriority(.init(1), for: .horizontal)
@@ -79,7 +43,7 @@ final class BreadcrumbBar: NSVisualEffectView, NSTextFieldDelegate {
         crumbsClip.layer?.masksToBounds = true
 
         let nav = NavCapsule(backButton, forwardButton)
-        let row = UI.hstack([nav, refreshButton, home, crumbsClip, address, copyButton, crumbsButton, search], spacing: 6)
+        let row = UI.hstack([nav, refreshButton, home, crumbsClip, search], spacing: 6)
         row.setCustomSpacing(10, after: nav)
         addSubview(row)
         NSLayoutConstraint.activate([
@@ -92,79 +56,10 @@ final class BreadcrumbBar: NSVisualEffectView, NSTextFieldDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    // MARK: Address bar
-
-    /// ⌘L: show (if crumbs are on) and focus the field, path selected.
-    func beginEditing() {
-        editing = true
-        applyMode()
-        address.stringValue = fm.activeTab.path
-        window?.makeFirstResponder(address)
-        address.currentEditor()?.selectAll(nil)
-    }
-
-    private func applyMode() {
-        let crumbMode = showCrumbs && !editing
-        crumbsClip.isHidden = !crumbMode
-        address.isHidden = crumbMode
-        (crumbsButton as? HoverButton)?.state = showCrumbs ? .on : .off
-        crumbsButton.image = NSImage(systemSymbolName: showCrumbs ? "character.cursor.ibeam" : "chevron.forward.2",
-                                     accessibilityDescription: nil)
-        crumbsButton.toolTip = showCrumbs ? "Show the path as editable text" : "Show the path as buttons"
-    }
-
-    @objc private func toggleCrumbs() {
-        showCrumbs.toggle()
-        editing = false
-        applyMode()
-        update()
-    }
-
-    @objc private func copyPath() {
-        let path = fm.activeTab.path
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(path, forType: .string)
-        UI.hud("Path copied", in: window)
-    }
-
-    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
-        guard control === address else { return false }
-        switch selector {
-        case #selector(NSResponder.insertNewline(_:)):
-            if fm.goToTypedPath(address.stringValue) { finishEditing() }
-            return true
-        case #selector(NSResponder.cancelOperation(_:)):
-            address.stringValue = fm.activeTab.path
-            finishEditing()
-            window?.makeFirstResponder(fm.focusTarget)
-            return true
-        default:
-            return false
-        }
-    }
-
-    func controlTextDidEndEditing(_ obj: Notification) {
-        guard (obj.object as? NSTextField) === address else { return }
-        finishEditing()
-    }
-
-    private func finishEditing() {
-        guard editing || address.currentEditor() != nil else { return }
-        editing = false
-        applyMode()
-        // Show the real path again (the typed text is gone once we navigate
-        // or the user leaves the field).
-        if address.currentEditor() == nil { address.stringValue = fm.activeTab.path }
-    }
-
     func update() {
         let tab = fm.activeTab
         backButton.isEnabled = !tab.back.isEmpty
         forwardButton.isEnabled = !tab.forward.isEmpty
-        applyMode()
-        // Never overwrite what the user is typing.
-        if address.currentEditor() == nil { address.stringValue = tab.path }
-        copyButton.isEnabled = !tab.isVirtual
         crumbs.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let pseudo: [String]? = Tags.tag(fromPath: tab.path).map { ["Tags", $0] } ?? (tab.isTrash ? ["Trash"] : nil)
         if let pseudo {

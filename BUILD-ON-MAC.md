@@ -70,26 +70,26 @@ How it works: the bundle has the stable identifier `com.vsenderov.filobroot` and
 | ⌘⌫ / Del | Move to Trash (as in Finder) | delete permanently (⌘⌫) |
 | ⌥⌘⌫ / ⌘Del | delete permanently (asks first) | |
 | Esc | clear the filter, then the selection | clear selection |
-| ⌘L, ⇧⌘G | edit the address bar (split view: the Go to Folder sheet) | ⇧⌘G sheet |
+| ⌘L (also ⇧⌘G) | Go to Folder sheet with the current path selected, so ⌘C copies it | ⇧⌘G sheet |
 | ⌘+ / ⌘− / ⌘0 | whole-UI zoom / actual size | icon size |
 | ⌃⌘+ / ⌃⌘− | grid icon size | |
 | S | types "s" into the filter | multi-select mode (the toolbar button remains) |
 
-Settings in `defaults` (domain `com.vsenderov.filobroot`): `uiZoom` (0.75–2.0), `pathCrumbs` (bool, crumbs instead of the text field), `brootMaxRows` (default 500).
+Settings in `defaults` (domain `com.vsenderov.filobroot`): `uiZoom` (0.75–2.0), `brootMaxRows` (default 500).
 
 ## 6. Manual test checklist
 
 Build and launch:
 - [ ] `scripts/build.sh --native` ends with `✓ …/build/FiloBroot.app`; the app opens on your home folder.
 
-Address bar:
-- [ ] It shows the full path of the current folder and follows navigation (double-click a folder, Back ⌘[, ⌘↑, sidebar clicks).
-- [ ] ⌘L focuses it with the path selected; type `~/Downloads` and press Enter to go there; focus returns to the list.
-- [ ] Enter on `/etc/hosts` opens /etc with `hosts` selected.
-- [ ] Enter on `../`, on `'~/My Folder'`, on `file:///Applications`, and on `~/My\ Folder` all work.
-- [ ] Enter on `/nope` beeps and shows "No such file or folder" and stays in the field; Esc restores the path.
-- [ ] While editing, ⌘C/⌘V/⌘A/⌘Z act on the text, not on files.
-- [ ] The copy button and ⌥⌘C copy the path. The crumbs button toggles to clickable crumbs and back, and the choice survives a relaunch.
+Path and parent folder:
+- [ ] The path crumbs (single pane bar and each pane header in split view) are clickable; clicking one opens that folder, and the last crumb is the current folder.
+- [ ] ⌘↑ and ⌫ (with an empty filter) go to the parent folder, in single pane and in both panes of split view.
+- [ ] ⌘L (and ⇧⌘G) opens the Go to Folder sheet with the current path already selected; ⌘C copies it. Type `~/Downloads` and press Go to open it; focus returns to the list.
+- [ ] Go on `/etc/hosts` opens /etc with `hosts` selected.
+- [ ] Go on `../`, on `'~/My Folder'`, on `file:///Applications`, and on `~/My\ Folder` all work.
+- [ ] Go on `/nope` beeps and shows "No such file or folder" and stays in the current folder.
+- [ ] ⌥⌘C copies the path of the selection (or of the folder when nothing is selected).
 
 broot filter:
 - [ ] In a big folder (e.g. a source checkout), typing filters as you type and the status bar shows `broot N ms · N rows`; rows are indented as a tree, the matched letters are bold and coloured, and broot's best match is selected.
@@ -106,7 +106,7 @@ broot filter:
 - [ ] Tag tabs (sidebar tags) still use a plain substring filter.
 
 Zoom:
-- [ ] ⌘+ / ⌘− / ⌘0 scale everything together (sidebar, tabs, toolbar, address bar, list rows, grid icons, status bar) and a HUD shows the percentage; the View menu shows "Actual Size (N%)".
+- [ ] ⌘+ / ⌘− / ⌘0 scale everything together (sidebar, tabs, toolbar, path crumbs, list rows, grid icons, status bar) and a HUD shows the percentage; the View menu shows "Actual Size (N%)".
 - [ ] The zoom level survives a relaunch.
 - [ ] Zooming with a filter active, in split view, and with the preview pane open keeps things working.
 

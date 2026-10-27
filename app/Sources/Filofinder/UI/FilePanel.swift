@@ -170,7 +170,7 @@ final class FilePanel: NSView {
     }
 
     /// Brings the first selected item into view (broot's best match,
-    /// a revealed file, an address-bar file path).
+    /// a revealed file, a file path given to Go to Folder).
     func scrollToSelection() {
         guard let i = selectedIndexes().first else { return }
         if mode == .grid {

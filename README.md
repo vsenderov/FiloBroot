@@ -1,14 +1,13 @@
 # FiloBroot
 
-A bare-bones native macOS file manager: [FiloFinder](https://github.com/bipul0525/FiloFinder) with [broot](https://github.com/Canop/broot)'s search built in, plus three things:
+A bare-bones native macOS file manager: [FiloFinder](https://github.com/bipul0525/FiloFinder) with [broot](https://github.com/Canop/broot)'s search built in, plus two things:
 
-1. **Editable, copyable address bar.** The path row is a text field with the full POSIX path. ⌘L edits it; Enter goes there (`~`, relative paths, `file://` URLs, quoted or shell-escaped paths; a file path opens its folder with the file selected); Esc cancels; ⌘C or the copy button copies it. The old clickable crumbs are one button away.
-2. **broot-powered navigation.** Typing in a folder runs broot's own tree search (the `broot` crate, pinned at `=1.60.2`, linked as a library through UniFFI) on a background thread. Every keystroke cancels the search still running (it stops in well under a millisecond) and stale results are dropped. Results are ordinary list rows of real files, indented as a tree with the matched characters highlighted, so Space (Quick Look), drag and drop, copy/cut/paste and Trash work on them. Keys are broot's: type to filter, ↑/↓ to move, Enter opens a folder as the new root (or opens a file), ⌫ edits the pattern or goes to the parent, ⌘↑ goes to the parent, Esc clears. Patterns are broot's too: fuzzy by default, `/regex/`, `p/path`, `c/content`.
-3. **Whole-UI zoom.** ⌘+ / ⌘− / ⌘0 scale fonts, row heights, icons, bars and the address bar together (75%–200%); the level is remembered.
+1. **broot-powered navigation.** Typing in a folder runs broot's own tree search (the `broot` crate, pinned at `=1.60.2`, linked as a library through UniFFI) on a background thread. Every keystroke cancels the search still running (it stops in well under a millisecond) and stale results are dropped. Results are ordinary list rows of real files, indented as a tree with the matched characters highlighted, so Space (Quick Look), drag and drop, copy/cut/paste and Trash work on them. Keys are broot's: type to filter, ↑/↓ to move, Enter opens a folder as the new root (or opens a file), ⌫ edits the pattern or goes to the parent, ⌘↑ goes to the parent, Esc clears. Patterns are broot's too: fuzzy by default, `/regex/`, `p/path`, `c/content`.
+2. **Whole-UI zoom.** ⌘+ / ⌘− / ⌘0 scale fonts, row heights, icons and bars together (75%–200%); the level is remembered.
 
 It can also act as the macOS **default file viewer**, so "Reveal in Finder" / "Show in Folder" in other apps opens it (see [BUILD-ON-MAC.md](BUILD-ON-MAC.md)).
 
-Everything else is FiloFinder: tabs, split view, folder tree, Quick Look, drag copy/move, cut & paste with undo, tags, Trash with Put Back. Sparkle auto-updates and the upstream release tooling were removed; the bundle ID is `com.vsenderov.filobroot`.
+Everything else is FiloFinder: clickable path crumbs, a Go to Folder sheet (⇧⌘G or ⌘L; it shows the folder's path selected so ⌘C copies it), tabs, split view, folder tree, Quick Look, drag copy/move, cut & paste with undo, tags, Trash with Put Back. Sparkle auto-updates and the upstream release tooling were removed; the bundle ID is `com.vsenderov.filobroot`.
 
 ## Performance
 

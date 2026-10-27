@@ -483,7 +483,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     }
 
     /// Opens `path` in the active tab; `select` names an item in it to
-    /// select and scroll to (address bar with a file path, Reveal in Finder).
+    /// select and scroll to (Go to Folder with a file path, Reveal in Finder).
     func navigate(to path: String, select: String? = nil) {
         let tab = activeTab
         let target = (path as NSString).standardizingPath
@@ -748,7 +748,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
     }
 
     @objc func newFolder(_ sender: Any?) { if requireRealFolder() { ops.newFolder(in: activeTab.path) } }
-    /// While a text field (address bar, filter) is being edited, the Edit
+    /// While a text field (the filter) is being edited, the Edit
     /// menu's ⌘C ⌘X ⌘V ⌘A ⌘Z act on its text, not on files.
     /// (Menu invocations only: toolbar buttons keep acting on files.)
     private var textEditor: NSTextView? { window?.firstResponder as? NSTextView }
@@ -908,12 +908,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         toolbar.update()
     }
 
-    /// ⌘L: edit the address bar (split view has none: the Go to Folder sheet).
-    @objc func focusAddressBar(_ sender: Any?) {
-        if splitMode { focusPath(sender) } else { breadcrumbs.beginEditing() }
-    }
-
-    /// Turns what was typed or pasted into the address bar into an absolute
+    /// Turns what was typed or pasted into Go to Folder into an absolute
     /// path: trims, unquotes, accepts file:// URLs and shell-escaped spaces,
     /// expands ~ and resolves relative paths against `base`.
     static func resolveTypedPath(_ raw: String, relativeTo base: String) -> String? {
@@ -930,7 +925,7 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         return (s as NSString).standardizingPath
     }
 
-    /// Address bar Enter: a folder opens, a file opens its folder with the
+    /// Go to Folder "Go": a folder opens, a file opens its folder with the
     /// file selected. Returns false (and says why) if the path is no good.
     @discardableResult
     func goToTypedPath(_ raw: String) -> Bool {
@@ -955,11 +950,17 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         return true
     }
 
+    /// ⇧⌘G / ⌘L: a sheet with the current folder's path, selected so ⌘C copies
+    /// it; type or paste another path and press Go to open it.
     @objc func focusPath(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Folder"
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        alert.informativeText = "This folder's path is selected: ⌘C copies it. Type or paste a path to go somewhere else."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 420, height: 24))
         field.stringValue = activeTab.path
+        field.lineBreakMode = .byTruncatingHead
+        field.cell?.usesSingleLineMode = true
+        field.cell?.isScrollable = true
         alert.accessoryView = field
         alert.addButton(withTitle: "Go")
         alert.addButton(withTitle: "Cancel")
@@ -968,6 +969,11 @@ final class FileManagerWindowController: NSWindowController, NSWindowDelegate, N
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertFirstButtonReturn else { return }
             self?.goToTypedPath(field.stringValue)
+        }
+        // Once the sheet is up: focus the field with all of its text selected.
+        DispatchQueue.main.async {
+            alert.window.makeFirstResponder(field)
+            field.currentEditor()?.selectAll(nil)
         }
     }
 

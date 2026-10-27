@@ -95,10 +95,11 @@ enum MainMenu {
         let home = NSMenuItem(title: "Home", action: #selector(FM.goHome(_:)), keyEquivalent: "h")
         home.keyEquivalentModifierMask = [.command, .shift]
         go.addItem(home)
-        go.addItem(withTitle: "Edit Address Bar", action: #selector(FM.focusAddressBar(_:)), keyEquivalent: "l")
-        let goto = NSMenuItem(title: "Go to Folder…", action: #selector(FM.focusAddressBar(_:)), keyEquivalent: "g")
+        let goto = NSMenuItem(title: "Go to Folder…", action: #selector(FM.focusPath(_:)), keyEquivalent: "g")
         goto.keyEquivalentModifierMask = [.command, .shift]
         go.addItem(goto)
+        // ⌘L opens the same sheet: it shows the folder's path, selected for ⌘C.
+        go.addItem(withTitle: "Show Path…", action: #selector(FM.focusPath(_:)), keyEquivalent: "l")
         add(go, titled: "Go", to: main)
 
         let window = NSMenu(title: "Window")
