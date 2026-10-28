@@ -99,7 +99,7 @@ done
 step "Bundle"
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
-lipo -create "${BINS[@]}" -output "$BUNDLE/Contents/MacOS/Filofinder"
+lipo -create "${BINS[@]}" -output "$BUNDLE/Contents/MacOS/FiloBroot"
 cp "$APP_PKG/Info.plist" "$BUNDLE/Contents/Info.plist"
 [[ -f "$APP_PKG/Resources/AppIcon.icns" ]] && cp "$APP_PKG/Resources/AppIcon.icns" "$BUNDLE/Contents/Resources/"
 
@@ -107,6 +107,6 @@ step "Codesign (${SIGN_ID})"
 codesign --force --sign "$SIGN_ID" "${CODESIGN_KC[@]}" --timestamp=none "$BUNDLE"
 codesign --verify --strict "$BUNDLE"
 
-print -P "%F{green}✓ $BUNDLE ($(lipo -archs "$BUNDLE/Contents/MacOS/Filofinder"))%f"
+print -P "%F{green}✓ $BUNDLE ($(lipo -archs "$BUNDLE/Contents/MacOS/FiloBroot"))%f"
 [[ $RUN == 1 ]] && open "$BUNDLE"
 exit 0

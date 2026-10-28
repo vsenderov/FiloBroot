@@ -21,7 +21,7 @@
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
-	<string>Filofinder</string>
+	<string>FiloBroot</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -39,21 +39,21 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>Filofinder shows and manages the files in your Desktop folder.</string>
+	<string>FiloBroot shows and manages the files in your Desktop folder.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>Filofinder shows and manages the files in your Documents folder.</string>
+	<string>FiloBroot shows and manages the files in your Documents folder.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>Filofinder shows and manages the files in your Downloads folder.</string>
+	<string>FiloBroot shows and manages the files in your Downloads folder.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Filofinder contributors (bipul0525) · broot © Denys Séguret · MIT License</string>
 	<key>NSNetworkVolumesUsageDescription</key>
-	<string>Filofinder shows and manages files on network drives.</string>
+	<string>FiloBroot shows and manages files on network drives.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSRemovableVolumesUsageDescription</key>
-	<string>Filofinder shows and manages files on external drives.</string>
+	<string>FiloBroot shows and manages files on external drives.</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 </dict>
