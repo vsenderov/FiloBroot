@@ -217,8 +217,36 @@ final class ContextMenuBuilder: NSObject {
 
     static func terminal(at path: String) {
         let ws = NSWorkspace.shared
+        let folder = URL(fileURLWithPath: path)
+        // FiloBroot: prefer Ghostty when installed. Opening a folder with Ghostty adds a tab to an existing window, and native tabs break tiling window managers such as AeroSpace, so when Ghostty is already running ask it for a real new window over AppleScript (Ghostty 1.3+). If Ghostty isn't running, a plain open already gives its first window.
+        if let ghostty = ws.urlForApplication(withBundleIdentifier: ghosttyID) {
+            let running = !NSRunningApplication.runningApplications(withBundleIdentifier: ghosttyID).isEmpty
+            if running && ghosttyNewWindow(at: path) { return }
+            ws.open([folder], withApplicationAt: ghostty, configuration: NSWorkspace.OpenConfiguration())
+            return
+        }
         guard let terminal = ws.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else { return }
-        ws.open([URL(fileURLWithPath: path)], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+        ws.open([folder], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    private static let ghosttyID = "com.mitchellh.ghostty"
+
+    /// Asks a running Ghostty for a new window in `path`. Returns false if the script fails, for example on Ghostty older than 1.3 or when Automation permission is denied, so the caller can fall back.
+    private static func ghosttyNewWindow(at path: String) -> Bool {
+        let quoted = path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let source = """
+        tell application id "\(ghosttyID)"
+            set cfg to new surface configuration
+            set initial working directory of cfg to "\(quoted)"
+            new window with configuration cfg
+            activate
+        end tell
+        """
+        guard let script = NSAppleScript(source: source) else { return false }
+        var error: NSDictionary?
+        script.executeAndReturnError(&error)
+        if let error { NSLog("FiloBroot: Ghostty AppleScript failed: \(error)") }
+        return error == nil
     }
 
     @objc private func openWithApp(_ sender: NSMenuItem) {

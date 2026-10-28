@@ -38,6 +38,8 @@
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>FiloBroot asks Ghostty to open a new window in the folder when you choose Open in Terminal.</string>
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>FiloBroot shows and manages the files in your Desktop folder.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
