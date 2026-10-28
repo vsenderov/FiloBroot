@@ -47,7 +47,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Filofinder contributors (bipul0525) · broot © Denys Séguret · MIT License</string>
+	<string>© 2026 Viktor Senderov · FiloFinder © 2026 Filofinder contributors (bipul0525) · broot © Denys Séguret · MIT License</string>
 	<key>NSNetworkVolumesUsageDescription</key>
 	<string>FiloBroot shows and manages files on network drives.</string>
 	<key>NSPrincipalClass</key>
